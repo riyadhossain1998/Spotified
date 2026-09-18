@@ -36,7 +36,7 @@ const TRACK_FIELDS =
 // dead name would not error -- it would quietly report every playlist as empty.
 const PLAYLIST_FIELDS =
   "id,name,snapshot_id,description,public,collaborative," +
-  "images,external_urls(spotify),owner(display_name),items(total)";
+  "images,external_urls(spotify),owner(display_name,id),items(total)";
 
 function firstImage(images) {
   return images?.length ? images[0].url : null;
@@ -59,12 +59,32 @@ export function toPlaylistRef(payload) {
     // read the current name first and fall back rather than picking one.
     track_count: payload.items?.total ?? payload.tracks?.total ?? 0,
     owner_name: payload.owner?.display_name ?? null,
+    // Needed to tell readable playlists from unreadable ones: since 2026-02
+    // Spotify only serves contents for playlists you own or collaborate on.
+    owner_id: payload.owner?.id ?? null,
     description: payload.description || null,
     image_url: firstImage(payload.images),
     spotify_url: payload.external_urls?.spotify ?? null,
     public: payload.public ?? null,
     collaborative: Boolean(payload.collaborative),
   };
+}
+
+/**
+ * Can this account read the playlist's contents?
+ *
+ * Spotify's 2026-02 migration limited playlist items to "playlists the user
+ * owns or collaborates on". Metadata is still public, so a followed playlist
+ * appears in `/me/playlists` and looks perfectly openable right up until its
+ * items 403 -- which is the whole reason this check exists rather than letting
+ * the request fail and explaining afterwards.
+ *
+ * A missing profile returns true: without an id there is nothing to compare,
+ * and refusing to open anything is far worse than the occasional clear error.
+ */
+export function canReadContents(playlist, userId) {
+  if (!userId) return true;
+  return Boolean(playlist.collaborative) || playlist.owner_id === userId;
 }
 
 /** One page of the current user's playlists, plus whether more exist. */

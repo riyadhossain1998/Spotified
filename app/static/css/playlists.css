@@ -70,6 +70,66 @@
   color: var(--text-muted);
 }
 
+.playlist-card__note {
+  margin: 0.3rem 0 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+/* Playlists Spotify will not let the app read: followed, not owned. Muted and
+   inert, but still listed -- hiding them would read as "we lost your playlist"
+   rather than "Spotify will not hand this one over". */
+.playlist-card--locked {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.playlist-card--locked:hover {
+  background: var(--bg-elevated);
+  border-color: transparent;
+  transform: none;
+}
+
+.playlist-card__badge--locked {
+  background: rgba(0, 0, 0, 0.78);
+  color: var(--text);
+}
+
+.playlist-notice {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  max-width: 62ch;
+}
+
+.playlist-notice p { margin: 0 0 0.6rem; }
+
+.playlist-notice__title {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.playlist-notice__how { margin-bottom: 0.35rem; }
+
+.playlist-notice ol {
+  margin: 0 0 0.75rem;
+  padding-left: 1.2rem;
+}
+
+.playlist-notice li { margin-bottom: 0.2rem; }
+
+.playlist-notice__alt {
+  margin-bottom: 0;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
 .playlist-card--liked .playlist-card__art {
   background: linear-gradient(135deg, #4500a8, #8e8ee5);
   display: grid;

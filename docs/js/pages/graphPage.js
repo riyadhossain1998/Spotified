@@ -17,7 +17,11 @@ import { DetailPanel } from "../../static/js/graph/detailPanel.js";
 import { buildArtistNetwork } from "../graph/artistNetwork.js";
 import { currentUser } from "../auth/session.js";
 import { fetchArtists } from "../spotify/artists.js";
-import { fetchPlaylistTracks, getPlaylist } from "../spotify/playlists.js";
+import {
+  canReadContents,
+  fetchPlaylistTracks,
+  getPlaylist,
+} from "../spotify/playlists.js";
 import { loginAgainButton, renderTopbarUser, requireLogin } from "../ui/topbar.js";
 
 export async function initGraphPage() {
@@ -25,7 +29,8 @@ export async function initGraphPage() {
 
   if (!requireLogin()) return; // redirecting
 
-  renderTopbarUser(currentUser());
+  const user = currentUser();
+  renderTopbarUser(user);
 
   const canvas = document.getElementById("graph-canvas");
   const loader = document.getElementById("graph-loader");
@@ -89,6 +94,20 @@ export async function initGraphPage() {
     if (playlist.image_url) {
       artEl.src = playlist.image_url;
       artEl.hidden = false;
+    }
+
+    // Metadata is readable for any playlist, contents are not. Checking here
+    // turns the 403 that would follow into an explanation, and matters most on
+    // this page: a bookmark or a shared link arrives without ever passing the
+    // grid, where these playlists are already greyed out.
+    if (!canReadContents(playlist, user?.id)) {
+      showError(
+        `"${playlist.name}" belongs to ${playlist.owner_name || "another Spotify user"}. ` +
+          "Since February 2026 Spotify only lets apps read playlists you own or " +
+          "collaborate on. To graph it, open it in Spotify, select every track, " +
+          "and add them to a new playlist of your own — then build the graph from that copy."
+      );
+      return;
     }
 
     const tracks = await fetchPlaylistTracks(playlistId, {
