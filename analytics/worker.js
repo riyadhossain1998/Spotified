@@ -9,11 +9,12 @@
 
 // Only these origins may write. Anyone can still POST here with curl, but an
 // allowlist keeps a stray script on someone else's page out of the table.
-const ALLOWED_ORIGINS = [
-  "https://riyadhossain1998.github.io",
-  "http://127.0.0.1:8099",
-  "http://127.0.0.1:5000",
-];
+//
+// Localhost is deliberately absent. The published URL is committed in
+// analytics.js, so a development run reports by default; a 403 is what keeps
+// that traffic out of the numbers without anyone having to remember to switch
+// the endpoint off first. Add an origin here to measure a local run on purpose.
+const ALLOWED_ORIGINS = ["https://riyadhossain1998.github.io"];
 
 // An unknown kind is a bug or an intruder; either way it is not data.
 const KINDS = new Set(["visit", "artist_click", "song_click", "spotify_open"]);

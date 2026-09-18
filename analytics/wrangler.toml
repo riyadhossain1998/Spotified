@@ -2,9 +2,9 @@ name = "spotified-analytics"
 main = "worker.js"
 compatibility_date = "2026-09-01"
 
-# Fill database_id in from the output of:
-#   npx wrangler d1 create spotified-analytics
+# Not a secret: a database id only names the database, and reaching it still
+# needs an API token for the account that owns it.
 [[d1_databases]]
 binding = "DB"
 database_name = "spotified-analytics"
-database_id = "PASTE_DATABASE_ID_HERE"
+database_id = "91fdb76d-21d6-4121-b626-f629a1209a0c"

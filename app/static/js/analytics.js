@@ -8,13 +8,17 @@
  */
 
 /**
- * The deployed Worker URL, e.g.
- * "https://spotified-analytics.<subdomain>.workers.dev".
+ * The deployed Worker URL. Set this to "" to turn reporting off entirely.
  *
- * Empty means analytics are off, which is how this ships and how local
- * development stays out of the numbers.
+ * Safe to commit: it is a write-only endpoint that accepts four fixed event
+ * kinds from an allowlisted origin and returns nothing, so knowing the address
+ * buys an attacker the ability to inflate counts and nothing else.
+ *
+ * Local development still stays out of the numbers: the Worker's origin
+ * allowlist has no localhost entry, so a development run is rejected with a 403
+ * that send() swallows like any other failure.
  */
-const ENDPOINT = "";
+const ENDPOINT = "https://spotified-analytics.riyad-hossain114.workers.dev";
 
 function send(kind, name) {
   if (!ENDPOINT) return;
