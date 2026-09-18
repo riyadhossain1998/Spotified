@@ -19,6 +19,7 @@ import spotipy
 from flask import Blueprint, current_app, jsonify, request
 
 from app.auth.decorators import api_login_required
+from app.auth.session import current_user
 from app.errors import PlaybackError
 from app.graph import service as graph_service
 from app.graph.builders import DEFAULT_MODE, available_modes
@@ -42,9 +43,11 @@ def _bool_arg(name: str, default: bool = False) -> bool:
 @api_bp.get("/me")
 @api_login_required
 def me():
-    from app.auth.session import current_user
-
     return jsonify(current_user() or {})
+
+
+def _current_user_id() -> str | None:
+    return (current_user() or {}).get("id")
 
 
 @api_bp.get("/modes")
@@ -60,15 +63,22 @@ def list_playlists():
     limit = min(int(request.args.get("limit", 50)), 50)
     offset = max(int(request.args.get("offset", 0)), 0)
 
+    user_id = _current_user_id()
+
     items, total = playlist_repo.list_user_playlists(client, limit=limit, offset=offset)
-    payload = [p.to_dict() for p in items]
+    # `readable` is computed here rather than sent as raw ownership for the
+    # browser to interpret: the rule is Spotify's and belongs on the server,
+    # and it keeps the grid from having to know who is signed in.
+    payload = [{**p.to_dict(), "readable": p.readable_by(user_id)} for p in items]
 
     if offset == 0:
         from app.spotify import library as library_repo
 
         try:
             liked = library_repo.liked_songs_ref(client)
-            payload.insert(0, {**liked.to_dict(), "is_liked_songs": True})
+            payload.insert(
+                0, {**liked.to_dict(), "is_liked_songs": True, "readable": True}
+            )
         except spotipy.SpotifyException as exc:
             # Missing user-library-read is not worth failing the whole page for.
             logger.info("Skipping Liked Songs entry: %s", exc)
@@ -91,8 +101,10 @@ def get_playlist(playlist_id: str):
     if playlist_id == LIKED_SONGS_ID:
         from app.spotify import library as library_repo
 
-        return jsonify(library_repo.liked_songs_ref(client).to_dict())
-    return jsonify(playlist_repo.get_playlist_ref(client, playlist_id).to_dict())
+        return jsonify({**library_repo.liked_songs_ref(client).to_dict(), "readable": True})
+
+    ref = playlist_repo.get_playlist_ref(client, playlist_id)
+    return jsonify({**ref.to_dict(), "readable": ref.readable_by(_current_user_id())})
 
 
 @api_bp.get("/playlists/<playlist_id>/graph")
@@ -107,7 +119,9 @@ def get_graph(playlist_id: str):
     mode = request.args.get("mode", DEFAULT_MODE)
     force = _bool_arg("refresh")
 
-    result = graph_service.get_graph(client, playlist_id, mode, force_refresh=force)
+    result = graph_service.get_graph(
+        client, playlist_id, mode, force_refresh=force, user_id=_current_user_id()
+    )
 
     response = jsonify(result.payload)
     # Handy in devtools for confirming the cache is doing its job.

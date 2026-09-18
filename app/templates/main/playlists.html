@@ -20,6 +20,11 @@
 
 <div id="playlist-status" class="status" role="status"></div>
 
+{# Filled in by playlistsPage.js, and only when the account actually has
+   playlists it cannot read. Explaining a restriction nobody has hit is just
+   noise on the page. #}
+<aside id="playlist-notice" class="playlist-notice" hidden></aside>
+
 <div id="playlist-grid" class="playlist-grid"></div>
 
 <div class="load-more">
@@ -30,11 +35,12 @@
   <a class="playlist-card" href="#">
     <div class="playlist-card__art">
       <img alt="" loading="lazy">
-      <span class="playlist-card__badge" hidden>Cached</span>
+      <span class="playlist-card__badge" hidden></span>
     </div>
     <div class="playlist-card__body">
       <h2 class="playlist-card__name"></h2>
       <p class="playlist-card__meta"></p>
+      <p class="playlist-card__note" hidden></p>
     </div>
   </a>
 </template>

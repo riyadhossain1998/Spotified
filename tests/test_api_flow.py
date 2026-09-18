@@ -27,6 +27,10 @@ class FakeSpotify:
         self.snapshot_id = snapshot_id
         self.artist_calls: list[str] = []
         self.track_page_calls = 0
+        # Matches the signed-in profile below, so the playlist is readable by
+        # default. Tests reassign these to model a followed playlist.
+        self.owner_id = "u1"
+        self.collaborative = False
 
     def current_user(self):
         return {"id": "u1", "display_name": "Test User", "images": [], "product": "premium"}
@@ -38,10 +42,10 @@ class FakeSpotify:
             "snapshot_id": self.snapshot_id,
             "description": "",
             "public": True,
-            "collaborative": False,
+            "collaborative": self.collaborative,
             "images": [{"url": "http://img/pl", "width": 640}],
             "external_urls": {"spotify": "http://open/pl"},
-            "owner": {"display_name": "Test User"},
+            "owner": {"display_name": "Test User", "id": self.owner_id},
             "items": {"total": 3},
         }
 
@@ -167,6 +171,10 @@ def test_playlists_page_renders(logged_in):
     response = logged_in.get("/playlists")
     assert response.status_code == 200
     assert b"playlist-grid" in response.data
+    # The hooks playlistsPage.js writes into for unreadable playlists. Without
+    # them the locked-card branch silently does nothing.
+    assert b"playlist-notice" in response.data
+    assert b"playlist-card__note" in response.data
 
 
 def test_graph_page_renders_with_mode_switcher(logged_in):
@@ -305,6 +313,31 @@ def test_playlists_listing_includes_liked_songs_first(logged_in):
     assert payload["items"][0]["is_liked_songs"] is True
     assert payload["items"][0]["name"] == "Liked Songs"
     assert payload["items"][1]["id"] == PLAYLIST_ID
+
+
+def test_listing_flags_playlists_spotify_will_not_serve(logged_in, fake_spotify):
+    """The grid needs to know before the user clicks, not after a 403."""
+    owned = logged_in.get("/api/playlists").get_json()["items"][1]
+    assert owned["readable"] is True
+
+    fake_spotify.owner_id = "someone_else"
+    followed = logged_in.get("/api/playlists").get_json()["items"][1]
+    assert followed["readable"] is False
+
+    # Collaborators count as owners, so this one stays openable.
+    fake_spotify.collaborative = True
+    shared = logged_in.get("/api/playlists").get_json()["items"][1]
+    assert shared["readable"] is True
+
+
+def test_graph_refuses_a_playlist_the_user_cannot_read(logged_in, fake_spotify):
+    fake_spotify.owner_id = "someone_else"
+
+    response = logged_in.get(f"/api/playlists/{PLAYLIST_ID}/graph")
+    assert response.status_code == 403
+    assert response.get_json()["error"] == "playlist_not_readable"
+    # The point of the check: the request Spotify would reject is never made.
+    assert fake_spotify.track_page_calls == 0
 
 
 def test_playback_endpoint(logged_in):

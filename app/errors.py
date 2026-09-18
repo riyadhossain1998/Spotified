@@ -52,6 +52,17 @@ class PlaylistNotFound(AppError):
     error_code = "playlist_not_found"
 
 
+class PlaylistNotReadable(AppError):
+    """Spotify will not serve this playlist's contents to this user.
+
+    403 rather than 404: the playlist exists and its metadata was just read
+    successfully. Only the items are out of reach.
+    """
+
+    status_code = 403
+    error_code = "playlist_not_readable"
+
+
 class PlaybackError(AppError):
     status_code = 409
     error_code = "playback_failed"

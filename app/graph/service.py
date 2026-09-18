@@ -100,8 +100,14 @@ def get_graph(
     mode: str = DEFAULT_MODE,
     *,
     force_refresh: bool = False,
+    user_id: str | None = None,
 ) -> GraphResult:
-    """Return the graph for a playlist, building and caching it if needed."""
+    """Return the graph for a playlist, building and caching it if needed.
+
+    `user_id` is the signed-in Spotify account, used only to reject playlists
+    Spotify will not hand over. Passed in rather than read from the session so
+    this stays callable off a request.
+    """
     builder_class = get_builder_class(mode)
     if not builder_class.available:
         from app.errors import ModeUnavailable
@@ -113,6 +119,20 @@ def get_graph(
     # One cheap request buys us the snapshot_id, which is the cache key. Worth
     # it: a hit then skips fetching hundreds of tracks and all artist metadata.
     ref = _resolve_ref(client, playlist_id)
+
+    # Before the cache probe, not after: a graph cached from an earlier visit
+    # cannot be refreshed once Spotify stops serving the items, so answering
+    # from it would only promise a playlist that can never be rebuilt.
+    if not ref.readable_by(user_id):
+        from app.errors import PlaylistNotReadable
+
+        raise PlaylistNotReadable(
+            f"{ref.name!r} belongs to {ref.owner_name or 'another Spotify user'}. "
+            "Since February 2026 Spotify only lets apps read playlists you own "
+            "or collaborate on. To graph it, open it in Spotify, select every "
+            "track, and add them to a new playlist of your own — then build the "
+            "graph from that copy."
+        )
 
     if not force_refresh:
         cached = store.get(mode, playlist_id, ref.snapshot_id)

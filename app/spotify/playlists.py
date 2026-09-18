@@ -57,6 +57,9 @@ def to_playlist_ref(payload: dict[str, Any]) -> PlaylistRef:
         # the current `items`, so read the new name first and fall back.
         track_count=(payload.get("items") or payload.get("tracks") or {}).get("total", 0),
         owner_name=(payload.get("owner") or {}).get("display_name"),
+        # Needed to tell readable playlists from unreadable ones: since 2026-02
+        # Spotify only serves contents for playlists you own or collaborate on.
+        owner_id=(payload.get("owner") or {}).get("id"),
         description=payload.get("description") or None,
         image_url=_first_image(payload.get("images")),
         spotify_url=(payload.get("external_urls") or {}).get("spotify"),
@@ -91,7 +94,7 @@ def get_playlist_ref(client: spotipy.Spotify, playlist_id: str) -> PlaylistRef:
     payload = client.playlist(
         playlist_id,
         fields="id,name,snapshot_id,description,public,collaborative,"
-        "images,external_urls(spotify),owner(display_name),items(total)",
+        "images,external_urls(spotify),owner(display_name,id),items(total)",
     )
     return to_playlist_ref(payload)
 

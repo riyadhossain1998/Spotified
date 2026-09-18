@@ -95,11 +95,29 @@ class PlaylistRef:
     snapshot_id: str
     track_count: int
     owner_name: str | None = None
+    owner_id: str | None = None
     description: str | None = None
     image_url: str | None = None
     spotify_url: str | None = None
     public: bool | None = None
     collaborative: bool = False
+
+    def readable_by(self, user_id: str | None) -> bool:
+        """Will Spotify serve this playlist's contents to `user_id`?
+
+        Since the 2026-02 API migration, playlist items are only returned for
+        playlists the user owns or collaborates on. Metadata stays public, so a
+        followed playlist looks perfectly openable right up until its items come
+        back 403 -- which is why this is asked in advance rather than inferred
+        from the failure.
+
+        Unknown answers yes. Liked Songs has no owner, and an unauthenticated
+        caller has no id to compare; refusing to open anything would be a far
+        worse failure than the occasional clear error further down.
+        """
+        if not user_id or not self.owner_id:
+            return True
+        return self.collaborative or self.owner_id == user_id
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -108,6 +126,7 @@ class PlaylistRef:
             "snapshot_id": self.snapshot_id,
             "track_count": self.track_count,
             "owner_name": self.owner_name,
+            "owner_id": self.owner_id,
             "description": self.description,
             "image_url": self.image_url,
             "spotify_url": self.spotify_url,
