@@ -7,16 +7,16 @@
  */
 
 import { pluralise } from "../../static/js/format.js";
+import { currentUser } from "../auth/session.js";
 import { listPlaylists } from "../spotify/playlists.js";
-import { renderTopbarUser, requireLogin, startLogin } from "../ui/topbar.js";
+import { loginAgainButton, renderTopbarUser, requireLogin } from "../ui/topbar.js";
 
 const PAGE_SIZE = 50;
 
 export function initPlaylistsPage() {
-  const user = requireLogin();
-  if (!user) return; // redirecting
+  if (!requireLogin()) return; // redirecting
 
-  renderTopbarUser(user);
+  renderTopbarUser(currentUser());
 
   const grid = document.getElementById("playlist-grid");
   const status = document.getElementById("playlist-status");
@@ -30,6 +30,13 @@ export function initPlaylistsPage() {
   function setStatus(message, isError = false) {
     status.textContent = message;
     status.classList.toggle("status--error", isError);
+  }
+
+  function setFailure(error) {
+    setStatus(error.message, true);
+    // Offer the fix rather than performing it, so a session Spotify keeps
+    // rejecting cannot put the page in a redirect cycle.
+    if (error.needsLogin) status.appendChild(loginAgainButton("playlists.html"));
   }
 
   function renderCard(playlist) {
@@ -92,12 +99,7 @@ export function initPlaylistsPage() {
         applyFilter();
       }
     } catch (error) {
-      if (error.needsLogin) {
-        // The session died between the guard above and this request.
-        startLogin("playlists.html").catch(() => setStatus(error.message, true));
-        return;
-      }
-      setStatus(error.message, true);
+      setFailure(error);
     } finally {
       loading = false;
       loadMore.disabled = false;

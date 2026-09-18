@@ -82,9 +82,13 @@ export async function apiGet(path, params) {
       continue;
     }
 
+    // Only 401 sets needsLogin, and it is set above. In particular a 403 must
+    // not: it means this account may not read this resource, which signing in
+    // again as the same account cannot change. Treating it as a login problem
+    // is an infinite redirect -- Spotify bounces straight back because consent
+    // was already granted, and the page fails the same way again.
     throw new SpotifyError(await describeFailure(response), {
       status: response.status,
-      needsLogin: response.status === 403,
     });
   }
 }
@@ -94,15 +98,19 @@ async function describeFailure(response) {
   const detail = payload?.error?.message;
 
   switch (response.status) {
+    // 403 and 404 are both worth spelling out, because the most common cause is
+    // the same and is not obvious: since late 2024 Spotify blocks apps from
+    // reading its own editorial and algorithmic playlists (Discover Weekly,
+    // Release Radar, the Top 50 charts, anything under the Spotify account).
+    // The raw responses -- a bare 404, or "Check settings on
+    // developer.spotify.com/dashboard" -- give no hint that the playlist itself
+    // is the problem rather than the sign-in.
     case 403:
-      // In development mode Spotify 403s anyone not on the app's allowlist,
-      // and the raw message ("Check settings on developer.spotify.com/dashboard")
-      // does not make that obvious.
       return detail
         ? `Spotify refused the request: ${detail}`
-        : "Spotify refused the request. If this app is in development mode, your account must be added to its allowlist.";
+        : "Spotify refused this request. Playlists made by Spotify itself cannot be read by apps, and while this app is in development mode your account must be on its allowlist.";
     case 404:
-      return "Spotify could not find that — it may be private or deleted.";
+      return "Spotify could not find that. Playlists made by Spotify itself (Discover Weekly, Release Radar, the charts) are not readable by apps — try one of your own.";
     case 429:
       return "Spotify is rate-limiting this app. Try again in a moment.";
     default:

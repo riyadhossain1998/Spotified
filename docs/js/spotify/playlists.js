@@ -17,15 +17,17 @@ import { apiGet, apiGetAll } from "./client.js";
 const PAGE_SIZE = 50; // Spotify's max for playlist listings
 const TRACK_PAGE_SIZE = 100; // Spotify's max for playlist items
 
-const TRACK_FIELDS = [
-  "next",
-  "items(added_at,track(",
-  "id,name,popularity,duration_ms,explicit,",
-  "external_urls(spotify),",
-  "artists(id,name),",
-  "album(name,release_date,images)",
-  "))",
-].join("");
+// Written as one string on purpose. Splitting it across array elements and
+// joining on "" silently swallowed the comma after `next`, and Spotify answers
+// an unrecognised field mask with an empty object rather than an error -- which
+// surfaces as "this playlist has no playable tracks" on a full playlist.
+const TRACK_FIELDS =
+  "next,items(added_at,track(" +
+  "id,name,popularity,duration_ms,explicit," +
+  "external_urls(spotify)," +
+  "artists(id,name)," +
+  "album(name,release_date,images)" +
+  "))";
 
 const PLAYLIST_FIELDS =
   "id,name,snapshot_id,description,public,collaborative," +

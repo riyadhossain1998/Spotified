@@ -15,17 +15,17 @@ import { formatNumber, pluralise } from "../../static/js/format.js";
 import { ArtistNetworkView } from "../../static/js/graph/artistNetworkView.js";
 import { DetailPanel } from "../../static/js/graph/detailPanel.js";
 import { buildArtistNetwork } from "../graph/artistNetwork.js";
+import { currentUser } from "../auth/session.js";
 import { fetchArtists } from "../spotify/artists.js";
 import { fetchPlaylistTracks, getPlaylist } from "../spotify/playlists.js";
-import { renderTopbarUser, requireLogin, startLogin } from "../ui/topbar.js";
+import { loginAgainButton, renderTopbarUser, requireLogin } from "../ui/topbar.js";
 
 export async function initGraphPage() {
   const playlistId = new URLSearchParams(window.location.search).get("playlist");
 
-  const user = requireLogin();
-  if (!user) return; // redirecting
+  if (!requireLogin()) return; // redirecting
 
-  renderTopbarUser(user);
+  renderTopbarUser(currentUser());
 
   const canvas = document.getElementById("graph-canvas");
   const loader = document.getElementById("graph-loader");
@@ -44,20 +44,35 @@ export async function initGraphPage() {
 
   let view = null;
 
-  function showError(message) {
+  function showError(error) {
+    const message = typeof error === "string" ? error : error.message;
+
     loader.hidden = false;
     loader.innerHTML = "";
+
     const heading = document.createElement("p");
     heading.className = "loader__text";
     heading.textContent = "Could not build this graph";
+
     const detail = document.createElement("p");
     detail.className = "loader__hint";
     detail.textContent = message;
+
     const back = document.createElement("a");
     back.className = "btn btn--ghost btn--sm";
     back.href = "playlists.html";
     back.textContent = "Back to playlists";
+
     loader.append(heading, detail, back);
+
+    // Offered, never performed automatically: Spotify returns from a re-login
+    // instantly once consent exists, so redirecting on a failure that outlives
+    // the login would just bring the user straight back here, forever.
+    if (error?.needsLogin) {
+      loader.appendChild(
+        loginAgainButton(window.location.pathname + window.location.search)
+      );
+    }
   }
 
   if (!playlistId) {
@@ -121,13 +136,7 @@ export async function initGraphPage() {
 
     loader.hidden = true;
   } catch (error) {
-    if (error.needsLogin) {
-      startLogin(window.location.pathname + window.location.search).catch(() =>
-        showError(error.message)
-      );
-      return;
-    }
-    showError(error.message);
+    showError(error);
     return;
   }
 
