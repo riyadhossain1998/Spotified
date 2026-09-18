@@ -20,6 +20,11 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* The UA sheet gives [hidden] `display: none`, but any later rule carrying its
+   own display silently wins -- `.btn { display: inline-flex }` is why a hidden
+   "Load more" button rendered anyway. */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {

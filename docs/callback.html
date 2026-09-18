@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!--
+  OAuth redirect target.
+
+  Spotify sends the browser back here with ?code=...&state=... . This page does
+  nothing but complete the exchange and forward the user on, so it is
+  deliberately the smallest page in the build -- anything heavier would be
+  loaded, run once, and thrown away.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signing you in — Spotified</title>
+  <!-- The authorization code is in this URL. Keep it out of referrer headers
+       and out of search engines. -->
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="static/css/base.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <a class="topbar__brand" href="./">
+      <span class="topbar__mark"></span>
+      Spotified
+    </a>
+  </header>
+
+  <main class="page">
+    <div id="callback-status" class="loader">
+      <div class="loader__spinner"></div>
+      <p class="loader__text">Finishing sign-in…</p>
+      <p class="loader__hint">Trading the authorization code for an access token.</p>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initCallbackPage } from "./js/pages/callbackPage.js";
+    initCallbackPage();
+  </script>
+</body>
+</html>

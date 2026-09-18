@@ -24,7 +24,7 @@ STATIC = ROOT / "app" / "static"
 # Assets the demo actually loads. Listing them rather than copying all of
 # app/static keeps the published site from carrying dead weight, and means a
 # future server-only module is not silently exposed.
-CSS = ["base.css", "graph.css"]
+CSS = ["base.css", "graph.css", "playlists.css"]
 JS = [
     "format.js",
     "graph/artistNetworkView.js",

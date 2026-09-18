@@ -67,21 +67,26 @@ python run.py          # http://127.0.0.1:5000
 
 The app has two halves with different hosting needs, so it is deployed to two places.
 
-### The demo → GitHub Pages
+### The static site → GitHub Pages
 
-**GitHub Pages cannot host the app itself.** It is a static file host: there is no Python
-runtime for Flask, the OAuth Authorization Code flow requires `SPOTIFY_CLIENT_SECRET` to
-stay server-side, and `GraphStore` needs a writable disk. What Pages *can* do is run the
-identical D3 view over a payload committed as a static file, so the graph and both click
-interactions are genuinely explorable without an account.
+**GitHub Pages cannot host the Flask app.** It is a static file host: no Python runtime,
+no writable disk for `GraphStore`, and nowhere safe to keep `SPOTIFY_CLIENT_SECRET`.
+
+So the Pages build is a second front end over the same Spotify API, written in plain ES
+modules under `docs/`. It does two things:
+
+- **the demo** (`index.html`) renders a payload committed as a static file, so the graph
+  and both click interactions are explorable with no account at all;
+- **login** (`playlists.html`, `graph.html`) signs the user in with PKCE and builds their
+  own playlists' graphs entirely in the browser.
 
 `scripts/build_pages.py` assembles the site by copying the app's real CSS and D3 modules
-into `docs/` — nothing is duplicated in the repo, so the demo cannot drift from the code
-the live app runs.
+into `_site/static/` — nothing is duplicated in the repo, so neither half can drift from
+the code the Flask app runs.
 
 ```bash
 python scripts/build_pages.py
-python -m http.server -d _site 8080
+python -m http.server -d _site 8099
 ```
 
 `.github/workflows/pages.yml` runs the same script on every push to `main`, and refuses to
@@ -93,6 +98,43 @@ To regenerate the sample payload from a legacy export:
 python scripts/make_demo_graph.py ../weeknd.json docs/demo-graph.json \
     --name "The Weeknd — Collaboration Network"
 ```
+
+#### Enabling login on the static site
+
+The Flask app proves its identity to Spotify with a client secret. A static site has
+nowhere to put one, so `docs/js/auth/pkce.js` uses **Authorization Code + PKCE**
+(RFC 7636) instead: it generates a random `code_verifier`, sends only
+`SHA-256(verifier)` to Spotify, and redeems the returned code by presenting the original.
+The verifier never travels over the network, so an intercepted redirect yields a code
+nobody can spend — which is what makes a secretless browser login safe.
+
+There is exactly one value to set:
+
+```js
+// docs/js/config.js
+export const CLIENT_ID = "PASTE_YOUR_SPOTIFY_CLIENT_ID_HERE";
+```
+
+Under PKCE the client id is a public identifier, not a credential, so committing it is
+fine. Until it is a real 32-hex id the login button stays disabled and explains why; the
+demo graph renders either way.
+
+Then register **both** redirect URIs in the Spotify dashboard, exactly as written —
+Spotify string-matches them, and allows `http` only for loopback addresses:
+
+| Where | Redirect URI |
+|---|---|
+| GitHub Pages | `https://<user>.github.io/<repo>/callback.html` |
+| Local preview | `http://127.0.0.1:8099/callback.html` |
+
+`redirectUri()` derives the right one from `document.baseURI`, so a single build works in
+both places with no rebuild. Note that a new Spotify app starts in **development mode**,
+where only accounts you add to its allowlist (up to 25) can log in — everyone else gets a
+403 with a message this build translates into plain English.
+
+Tokens live in `sessionStorage`, so closing the tab signs you out. That sounds worse than
+it is: Spotify remembers the granted consent, so logging back in is a silent redirect. In
+exchange, no refresh token is ever written to disk.
 
 ### The app → Render
 
@@ -165,7 +207,23 @@ FeatureNetwork/
 │           └── pages/
 │
 ├── data/cache/graphs/     # generated; gitignored
-├── docs/                  # GitHub Pages demo source (index.html + demo-graph.json)
+│
+├── docs/                  # GitHub Pages source — a secretless browser-only front end
+│   ├── index.html         # homepage: static demo graph + the login button
+│   ├── callback.html      # OAuth redirect target; trades the code and forwards on
+│   ├── playlists.html
+│   ├── graph.html         # ?playlist=<id>, built live in the browser
+│   ├── demo-graph.json    # committed sample payload — no account needed
+│   └── js/
+│       ├── config.js      # ← the one line to set: your Spotify client id
+│       ├── auth/
+│       │   ├── pkce.js        # ★ Authorization Code + PKCE, no client secret
+│       │   └── session.js     # sessionStorage tokens + transparent refresh
+│       ├── spotify/           # browser ports of app/spotify/*
+│       ├── graph/artistNetwork.js  # ★ browser port of the builder; same payload
+│       ├── ui/topbar.js       # the client-side stand-in for @login_required
+│       └── pages/
+│
 ├── scripts/
 │   ├── build_pages.py     # assembles _site/ from docs/ + app/static/
 │   └── make_demo_graph.py # legacy export -> Gen 2 payload, via the real builder

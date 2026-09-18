@@ -37,10 +37,16 @@ jobs:
       - name: Build site
         run: python scripts/build_pages.py --output _site
 
+      # Matches assigned *values*, not the words. The legacy data files in this
+      # project embed a real client id in every preview_url (`?cid=<32 hex>`),
+      # which is the failure mode this guard exists for; matching the bare
+      # identifier instead would also flag prose like "PKCE needs no
+      # client_secret" and train everyone to ignore the alarm.
       - name: Fail if a credential reached the payload
         run: |
-          if grep -rIqE 'cid=|client_secret|SPOTIFY_CLIENT' _site/; then
+          if grep -rIqE 'cid=[0-9a-fA-F]{16,}|client_secret["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9]{16,}|BQ[A-Za-z0-9_-]{60,}' _site/; then
             echo "::error::Refusing to publish: build output contains a credential."
+            grep -rIlE 'cid=[0-9a-fA-F]{16,}|client_secret["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9]{16,}|BQ[A-Za-z0-9_-]{60,}' _site/
             exit 1
           fi
 

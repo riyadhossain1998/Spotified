@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<!--
+  Playlist picker. Same markup as app/templates/main/playlists.html, minus the
+  Jinja: the user block in the topbar is filled in by topbar.js once the
+  profile is read out of sessionStorage.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your playlists — Spotified</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="static/css/base.css">
+  <link rel="stylesheet" href="static/css/playlists.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <a class="topbar__brand" href="./">
+      <span class="topbar__mark"></span>
+      Spotified
+    </a>
+    <nav class="topbar__nav" data-topbar-user></nav>
+  </header>
+
+  <main class="page">
+    <section class="section-head">
+      <h1 class="section-head__title">Your playlists</h1>
+      <p class="section-head__subtitle">
+        Pick a playlist to build its feature network. The graph is built in your
+        browser from the Spotify API — nothing is sent anywhere else.
+      </p>
+      <label class="search">
+        <input type="search" id="playlist-search" placeholder="Filter playlists…" autocomplete="off">
+      </label>
+    </section>
+
+    <div id="playlist-status" class="status" role="status"></div>
+
+    <div id="playlist-grid" class="playlist-grid"></div>
+
+    <div class="load-more">
+      <button id="load-more" class="btn btn--ghost" hidden>Load more</button>
+    </div>
+  </main>
+
+  <template id="playlist-card-template">
+    <a class="playlist-card" href="#">
+      <div class="playlist-card__art">
+        <img alt="" loading="lazy">
+        <span class="playlist-card__badge" hidden>Cached</span>
+      </div>
+      <div class="playlist-card__body">
+        <h2 class="playlist-card__name"></h2>
+        <p class="playlist-card__meta"></p>
+      </div>
+    </a>
+  </template>
+
+  <script type="module">
+    import { initPlaylistsPage } from "./js/pages/playlistsPage.js";
+    initPlaylistsPage();
+  </script>
+</body>
+</html>

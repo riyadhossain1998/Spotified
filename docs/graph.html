@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<!--
+  Live graph for one playlist, identified by ?playlist=<spotify id>.
+
+  Same markup as app/templates/main/graph.html so the app's graph.css applies
+  unchanged. There is no Rebuild button: nothing is cached in this build, so
+  every visit is already a rebuild.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feature network — Spotified</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="static/css/base.css">
+  <link rel="stylesheet" href="static/css/graph.css">
+</head>
+<body class="body--graph">
+
+  <header class="topbar">
+    <a class="topbar__brand" href="./">
+      <span class="topbar__mark"></span>
+      Spotified
+    </a>
+    <nav class="topbar__nav" data-topbar-user></nav>
+  </header>
+
+  <main class="graph-page">
+    <div class="graph-toolbar">
+      <div class="graph-toolbar__identity">
+        <img id="graph-playlist-art" class="graph-toolbar__art" alt="" hidden>
+        <div>
+          <h1 id="graph-playlist-name" class="graph-toolbar__title">Loading…</h1>
+          <p id="graph-playlist-stats" class="graph-toolbar__stats"></p>
+        </div>
+      </div>
+
+      <div class="graph-toolbar__controls">
+        <div class="mode-switch" role="group" aria-label="Graph mode">
+          <button class="mode-switch__btn is-active" data-mode="artist">Artists</button>
+          <button class="mode-switch__btn" data-mode="genre" disabled
+                  title="Genre mode (coming soon)">Genres</button>
+        </div>
+
+        <label class="toggle">
+          <input type="checkbox" id="toggle-solo">
+          <span>Hide unconnected</span>
+        </label>
+
+        <label class="search search--sm">
+          <input type="search" id="node-search" placeholder="Find an artist…" autocomplete="off">
+        </label>
+
+        <a href="playlists.html" class="btn btn--ghost btn--sm">Back</a>
+      </div>
+    </div>
+
+    <div class="graph-body">
+      <div id="graph-canvas" class="graph-canvas">
+        <div id="graph-loader" class="loader">
+          <div class="loader__spinner"></div>
+          <p id="graph-loader-text" class="loader__text">Loading playlist…</p>
+          <p class="loader__hint">
+            Tracks and artists are fetched straight from Spotify and the graph is
+            assembled here in the browser.
+          </p>
+        </div>
+      </div>
+
+      <aside id="detail-panel" class="detail-panel" aria-live="polite">
+        <div class="detail-panel__empty">
+          <h2>Nothing selected</h2>
+          <p>Click an <strong>artist</strong> to list their songs on this playlist.</p>
+          <p>Click a <strong>connection</strong> to list the songs two artists share.</p>
+        </div>
+      </aside>
+    </div>
+
+    <div id="graph-legend" class="graph-legend">
+      <span><i class="legend-dot legend-dot--primary"></i> Main artist</span>
+      <span><i class="legend-dot"></i> Node size = songs on playlist</span>
+      <span><i class="legend-line"></i> Line thickness = shared songs</span>
+      <span class="graph-legend__hint">Scroll to zoom · drag to pan · drag a node to pin</span>
+    </div>
+  </main>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script type="module">
+    import { initGraphPage } from "./js/pages/graphPage.js";
+    initGraphPage();
+  </script>
+</body>
+</html>
