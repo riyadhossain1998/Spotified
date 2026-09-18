@@ -13,6 +13,18 @@
  *   link length      -> inverse of shared tracks   (closer == more collabs)
  */
 
+/**
+ * Drawn when an artist has no image. `.node__ring` is a transparent stroke, so
+ * without this a node missing its picture is not a faint circle -- it is
+ * nothing at all, just a floating label with links running to a blank spot.
+ */
+const NODE_PLACEHOLDER_IMAGE =
+  "data:image/svg+xml;utf8," +
+  "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'>" +
+  "<rect width='64' height='64' fill='%232a2a2a'/>" +
+  "<text x='32' y='42' font-size='30' text-anchor='middle' fill='%23888'>?</text>" +
+  "</svg>";
+
 const NODE_RADIUS_RANGE = [11, 34];
 const LINK_WIDTH_RANGE = [1, 6];
 const LABEL_VISIBILITY_ZOOM = 0.55; // below this, labels are noise
@@ -223,7 +235,7 @@ export class ArtistNetworkView {
 
     group
       .append("image")
-      .attr("href", (d) => d.image_url || "")
+      .attr("href", (d) => d.image_url || NODE_PLACEHOLDER_IMAGE)
       .attr("x", (d) => -this.radius(d.track_count || 1))
       .attr("y", (d) => -this.radius(d.track_count || 1))
       .attr("width", (d) => this.radius(d.track_count || 1) * 2)

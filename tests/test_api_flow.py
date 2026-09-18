@@ -25,7 +25,7 @@ class FakeSpotify:
 
     def __init__(self, snapshot_id: str = "snap1"):
         self.snapshot_id = snapshot_id
-        self.artist_batch_calls = 0
+        self.artist_calls: list[str] = []
         self.track_page_calls = 0
 
     def current_user(self):
@@ -87,21 +87,18 @@ class FakeSpotify:
             "next": None,
         }
 
-    def artists(self, artist_ids):
-        self.artist_batch_calls += 1
+    def artist(self, artist_id):
+        # Spotify removed the batch /artists endpoint in 2026-02, so this is a
+        # per-artist lookup. `append` keeps the count correct under the pool.
+        self.artist_calls.append(artist_id)
         return {
-            "artists": [
-                {
-                    "id": aid,
-                    "name": aid.upper(),
-                    "popularity": 70,
-                    "followers": {"total": 1234},
-                    "genres": ["hip hop"],
-                    "images": [{"url": f"http://img/{aid}", "width": 160}],
-                    "external_urls": {"spotify": f"http://open/{aid}"},
-                }
-                for aid in artist_ids
-            ]
+            "id": artist_id,
+            "name": artist_id.upper(),
+            "popularity": 70,
+            "followers": {"total": 1234},
+            "genres": ["hip hop"],
+            "images": [{"url": f"http://img/{artist_id}", "width": 160}],
+            "external_urls": {"spotify": f"http://open/{artist_id}"},
         }
 
     def current_user_saved_tracks(self, limit=50, offset=0):
@@ -250,8 +247,8 @@ def test_enrichment_fields_present_without_a_second_pass(logged_in, fake_spotify
     assert track["release_year"] == 2021
     assert track["duration_ms"] == 200_000
     assert track["album_art_url"] == "http://img/t1"
-    # One batched artist call, not one per artist.
-    assert fake_spotify.artist_batch_calls == 1
+    # One lookup per distinct artist, and no artist resolved twice.
+    assert sorted(fake_spotify.artist_calls) == ["a1", "a2", "a3"]
 
 
 def test_snapshot_change_invalidates_cache(logged_in, fake_spotify):
