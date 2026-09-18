@@ -80,3 +80,10 @@ export async function playTrack(trackId) {
   });
   return body;
 }
+
+export async function queueTrack(trackId) {
+  const { body } = await request(`/api/playback/queue/${encodeURIComponent(trackId)}`, {
+    method: "POST",
+  });
+  return body;
+}

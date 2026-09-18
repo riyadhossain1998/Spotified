@@ -15,10 +15,19 @@ import { formatCompact, formatDuration, formatYear, pluralise } from "../format.
 /** How many raw Spotify labels an artist names before the rest become a count. */
 const GENRES_SHOWN = 4;
 
+const QUEUE_ICON =
+  "<svg viewBox='0 0 24 24' aria-hidden='true'>" +
+  "<path d='M3 6h11v2H3zM3 10h11v2H3zM3 14h7v2H3zM17 10h2v3h3v2h-3v3h-2v-3h-3v-2h3z'/></svg>";
+
+const CHECK_ICON =
+  "<svg viewBox='0 0 24 24' aria-hidden='true'>" +
+  "<path d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>";
+
 export class DetailPanel {
-  constructor(element, { onPlayTrack, onClose } = {}) {
+  constructor(element, { onPlayTrack, onQueueTrack, onClose } = {}) {
     this.element = element;
     this.onPlayTrack = onPlayTrack || (() => {});
+    this.onQueueTrack = onQueueTrack || (() => {});
     this.onClose = onClose || (() => {});
     this.graph = null;
     this.emptyMarkup = element.innerHTML; // keep the initial hint to restore later
@@ -266,7 +275,47 @@ export class DetailPanel {
     });
     row.appendChild(play);
 
+    // Queue is the more useful of the two on a graph like this: the point is to
+    // collect songs while exploring, and playing each one interrupts whatever is
+    // already going. It sits second because play is the more obvious gesture.
+    const queue = document.createElement("button");
+    queue.type = "button";
+    queue.className = "track-row__queue";
+    queue.setAttribute("aria-label", `Add ${track.name} to queue`);
+    queue.innerHTML = QUEUE_ICON;
+    queue.addEventListener("click", (event) => {
+      event.stopPropagation();
+      this._handleQueue(row, queue, track);
+    });
+    row.appendChild(queue);
+
     return row;
+  }
+
+  /**
+   * Queueing has no visible consequence -- the song does not start, and Spotify
+   * shows nothing -- so without an explicit acknowledgement the button reads as
+   * broken and gets pressed repeatedly. Hence the tick.
+   */
+  async _handleQueue(row, button, track) {
+    trackSongClick(track.name);
+    this.element.querySelector(".detail-toast")?.remove();
+
+    try {
+      await this.onQueueTrack(track);
+
+      button.classList.add("is-queued");
+      button.innerHTML = CHECK_ICON;
+      button.setAttribute("aria-label", `${track.name} added to queue`);
+      clearTimeout(button._queueTimer);
+      button._queueTimer = setTimeout(() => {
+        button.classList.remove("is-queued");
+        button.innerHTML = QUEUE_ICON;
+        button.setAttribute("aria-label", `Add ${track.name} to queue`);
+      }, 1600);
+    } catch (error) {
+      this._showToast(row, error, track);
+    }
   }
 
   async _handlePlay(row, track) {
@@ -283,25 +332,30 @@ export class DetailPanel {
       await this.onPlayTrack(track);
     } catch (error) {
       row.classList.remove("is-playing");
-
-      const toast = el("li", "detail-toast", error.message);
-      // Offer the web player as a fallback when device playback is unavailable.
-      if (track.spotify_url) {
-        const link = document.createElement("a");
-        link.href = track.spotify_url;
-        link.target = "_blank";
-        link.rel = "noopener";
-        link.className = "detail-link";
-        link.textContent = "Open in Spotify instead";
-        link.addEventListener("click", () => trackSpotifyOpen());
-        toast.appendChild(document.createElement("br"));
-        toast.appendChild(link);
-      }
-      // Under the row, not at the foot of the panel. Playback needs Premium and
-      // an active device, so on a hundred-track list the old placement put the
-      // explanation several screens below the button that caused it.
-      row.after(toast);
+      this._showToast(row, error, track);
     }
+  }
+
+  _showToast(row, error, track) {
+    const toast = el("li", "detail-toast", error.message);
+
+    // Offer the web player as a fallback when device playback is unavailable.
+    if (track.spotify_url) {
+      const link = document.createElement("a");
+      link.href = track.spotify_url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.className = "detail-link";
+      link.textContent = "Open in Spotify instead";
+      link.addEventListener("click", () => trackSpotifyOpen());
+      toast.appendChild(document.createElement("br"));
+      toast.appendChild(link);
+    }
+
+    // Under the row, not at the foot of the panel. Playback needs Premium and
+    // an active device, so on a hundred-track list the old placement put the
+    // explanation several screens below the button that caused it.
+    row.after(toast);
   }
 
   _resolveTracks(trackIds) {

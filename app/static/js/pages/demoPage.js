@@ -9,9 +9,9 @@
  *
  * The payload is built by scripts/make_demo_graph.py from recovered tracks.
  *
- * Playback is the one genuine difference: there is no server to proxy the
- * Spotify call, so onPlayTrack rejects and DetailPanel falls back to its
- * "Open in Spotify instead" link automatically.
+ * Playback is the one genuine difference: the demo has no Spotify session, so
+ * both handlers reject and DetailPanel falls back to its "Open in Spotify
+ * instead" link automatically.
  */
 
 import { trackVisit } from "../analytics.js";
@@ -33,7 +33,10 @@ export async function initDemoPage({ payload }) {
 
   const panel = new DetailPanel(document.getElementById("detail-panel"), {
     onPlayTrack: () => {
-      throw new Error("Playback needs the live app and a Spotify Premium device.");
+      throw new Error("Log in to play this. The demo has no Spotify session.");
+    },
+    onQueueTrack: () => {
+      throw new Error("Log in to queue this. The demo has no Spotify session.");
     },
     onClose: () => view?.clearSelection(),
   });

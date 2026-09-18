@@ -40,6 +40,11 @@ export const SCOPES = [
   "playlist-read-private",
   "playlist-read-collaborative",
   "user-library-read",
+  // Playback. `modify` covers both starting a track and adding one to the queue;
+  // `read` is what lets us tell "no active device" apart from "refused", which
+  // are the same 403/404 from the write endpoint alone.
+  "user-modify-playback-state",
+  "user-read-playback-state",
 ].join(" ");
 
 export const AUTHORIZE_ENDPOINT = "https://accounts.spotify.com/authorize";

@@ -19,6 +19,7 @@ import { DetailPanel } from "../../static/js/graph/detailPanel.js";
 import { buildArtistNetwork } from "../graph/artistNetwork.js";
 import { currentUser } from "../auth/session.js";
 import { fetchArtists } from "../spotify/artists.js";
+import { playTrack, queueTrack } from "../spotify/playback.js";
 import {
   canReadContents,
   fetchPlaylistTracks,
@@ -46,9 +47,8 @@ export async function initGraphPage() {
   const nodeSearch = document.getElementById("node-search");
 
   const panel = new DetailPanel(document.getElementById("detail-panel"), {
-    onPlayTrack: () => {
-      throw new Error("Playback needs the full app and a Spotify Premium device.");
-    },
+    onPlayTrack: (track) => playTrack(track.id),
+    onQueueTrack: (track) => queueTrack(track.id),
     onClose: () => view?.clearSelection(),
   });
 

@@ -1,7 +1,7 @@
 /** Graph page controller: wires the API, the D3 view and the detail panel. */
 
 import { trackVisit } from "../analytics.js";
-import { fetchGraph, fetchGraphStatus, playTrack } from "../api.js";
+import { fetchGraph, fetchGraphStatus, playTrack, queueTrack } from "../api.js";
 import { formatNumber, pluralise } from "../format.js";
 import { ArtistNetworkView } from "../graph/artistNetworkView.js";
 import { initGraphChrome } from "../graph/chrome.js";
@@ -26,6 +26,7 @@ export function initGraphPage({ playlistId, defaultMode }) {
 
   const panel = new DetailPanel(document.getElementById("detail-panel"), {
     onPlayTrack: (track) => playTrack(track.id),
+    onQueueTrack: (track) => queueTrack(track.id),
     onClose: () => view?.clearSelection(),
   });
 

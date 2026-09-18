@@ -93,6 +93,64 @@ export async function apiGet(path, params) {
   }
 }
 
+/**
+ * PUT/POST a resource, for the player endpoints.
+ *
+ * Separate from apiGet because those answer 204 with an empty body, and
+ * `response.json()` on an empty body throws — which would report a successful
+ * play as a failure. Retries and error translation are shared.
+ */
+export async function apiSend(method, path, { params, body } = {}) {
+  const url = buildUrl(path, params);
+
+  for (let attempt = 1; ; attempt += 1) {
+    const token = await getAccessToken();
+    if (!token) {
+      throw new SpotifyError("Your session has ended. Log in again.", {
+        status: 401,
+        needsLogin: true,
+      });
+    }
+
+    const response = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+
+    if (response.ok) {
+      // 204 from /play, 200 with an empty body from /queue.
+      const text = await response.text();
+      return text ? JSON.parse(text) : null;
+    }
+
+    if (response.status === 401) {
+      clearSession();
+      throw new SpotifyError("Spotify rejected the session. Log in again.", {
+        status: 401,
+        needsLogin: true,
+      });
+    }
+
+    if (response.status === 429 && attempt < MAX_ATTEMPTS) {
+      const wait = Number(response.headers.get("Retry-After") || 1);
+      if (wait <= MAX_RETRY_AFTER_SECONDS) {
+        await sleep((wait + 0.25) * 1000);
+        continue;
+      }
+    }
+
+    // Deliberately no blind 5xx retry here: unlike a GET these are not
+    // idempotent in effect -- a retried queue call adds the track twice.
+    throw new SpotifyError(await describeFailure(response), {
+      status: response.status,
+    });
+  }
+}
+
 async function describeFailure(response) {
   const payload = await response.json().catch(() => null);
   const detail = payload?.error?.message;

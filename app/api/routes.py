@@ -7,6 +7,7 @@
     GET    /api/playlists/<id>/graph/status?mode
     DELETE /api/playlists/<id>/graph?mode          -> drop cached graphs
     PUT    /api/playback/track/<track_id>
+    POST   /api/playback/queue/<track_id>
     GET    /api/modes
     GET    /api/cache                              (debug builds only)
 """
@@ -149,29 +150,46 @@ def invalidate_graph(playlist_id: str):
     return jsonify({"invalidated": removed, "playlist_id": playlist_id, "mode": mode})
 
 
+def _as_playback_error(exc: spotipy.SpotifyException) -> Exception:
+    """Both player routes fail the same two ways, and neither says so plainly.
+
+    Requires Premium plus an already-open Spotify client; Spotify has no way to
+    wake a device from the API, so 404 means "nothing is listening" rather than
+    "no such track".
+    """
+    if exc.http_status == 404:
+        return PlaybackError(
+            "No active Spotify device. Open Spotify on any device and try again."
+        )
+    if exc.http_status == 403:
+        return PlaybackError("Playback control requires a Spotify Premium account.")
+    return exc
+
+
 @api_bp.put("/playback/track/<track_id>")
 @api_login_required
 def play_track(track_id: str):
-    """Start playback of one track on the user's active device.
-
-    Requires Premium plus an already-open Spotify client; Spotify has no way
-    to wake a device from the API, so 404 here means "nothing is listening".
-    """
+    """Start playback of one track on the user's active device."""
     client = require_client()
     try:
         client.start_playback(uris=[f"spotify:track:{track_id}"])
     except spotipy.SpotifyException as exc:
-        if exc.http_status == 404:
-            raise PlaybackError(
-                "No active Spotify device. Open Spotify on any device and try again."
-            ) from exc
-        if exc.http_status == 403:
-            raise PlaybackError(
-                "Playback control requires a Spotify Premium account."
-            ) from exc
-        raise
+        raise _as_playback_error(exc) from exc
 
     return jsonify({"status": "playing", "track_id": track_id})
+
+
+@api_bp.post("/playback/queue/<track_id>")
+@api_login_required
+def queue_track(track_id: str):
+    """Add one track to the end of the user's queue."""
+    client = require_client()
+    try:
+        client.add_to_queue(f"spotify:track:{track_id}")
+    except spotipy.SpotifyException as exc:
+        raise _as_playback_error(exc) from exc
+
+    return jsonify({"status": "queued", "track_id": track_id})
 
 
 @api_bp.get("/cache")

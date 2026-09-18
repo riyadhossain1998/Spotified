@@ -294,11 +294,11 @@
 
 .track-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 
-/* Art, text, duration, play. The play column is a fixed width rather than
-   auto so the durations in a list still line up under each other. */
+/* Art, text, duration, play, queue. The two button columns are a fixed width
+   rather than auto so the durations in a list still line up under each other. */
 .track-row {
   display: grid;
-  grid-template-columns: 36px 1fr auto 28px;
+  grid-template-columns: 36px 1fr auto 28px 28px;
   gap: 0.7rem;
   align-items: center;
   padding: 0.45rem;
@@ -342,9 +342,10 @@
 }
 
 /* Dim at rest so a long list reads as songs rather than as a column of green
-   buttons, full strength once the row is under the pointer. It keeps its box
+   buttons, full strength once the row is under the pointer. They keep their box
    either way -- fading is what stops the row reflowing on hover. */
-.track-row__play {
+.track-row__play,
+.track-row__queue {
   display: grid;
   place-items: center;
   width: 28px;
@@ -359,17 +360,34 @@
   transition: opacity 0.12s, background 0.12s, color 0.12s;
 }
 
-.track-row__play svg { width: 16px; height: 16px; fill: currentColor; }
+.track-row__play svg,
+.track-row__queue svg { width: 16px; height: 16px; fill: currentColor; }
 
 .track-row:hover .track-row__play,
+.track-row:hover .track-row__queue,
+.track-row__play:focus-visible,
+.track-row__queue:focus-visible { opacity: 1; }
+
+/* Only play takes the filled accent. Queue stays an outline so the pair reads
+   as one primary action and one secondary, rather than two equal green pills. */
+.track-row:hover .track-row__play,
 .track-row__play:focus-visible {
-  opacity: 1;
   background: var(--accent);
   color: #05240f;
 }
 
+.track-row:hover .track-row__queue:hover,
+.track-row__queue:focus-visible {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
 .track-row.is-playing .track-row__play { opacity: 1; color: var(--accent); }
 .track-row.is-playing:hover .track-row__play { color: #05240f; }
+
+/* Confirmation that the track went somewhere. Queueing is otherwise invisible:
+   nothing starts, and Spotify itself gives no feedback. */
+.track-row__queue.is-queued { opacity: 1; color: var(--accent); }
 
 .detail-link {
   display: inline-block;
@@ -502,11 +520,17 @@
 
   .detail-panel__close { width: 34px; height: 34px; }
 
-  /* There is no hover on a touch screen, so the button has to be legible at
-     rest. Widening the column to 40px is what gets the tap target close to the
-     44px guideline without making the row taller than the artwork in it. */
-  .track-row { grid-template-columns: 36px 1fr auto 40px; }
-  .track-row__play {
+  /* There is no hover on a touch screen, so the buttons have to be legible at
+     rest. Widening the columns to 40px is what gets the tap targets close to the
+     44px guideline without making the row taller than the artwork in it. The gap
+     between them is load-bearing too: two 40px targets flush together is how you
+     queue a song you meant to play. */
+  .track-row {
+    grid-template-columns: 36px 1fr auto 40px 40px;
+    gap: 0.5rem;
+  }
+  .track-row__play,
+  .track-row__queue {
     width: 40px;
     height: 40px;
     opacity: 1;
@@ -514,6 +538,7 @@
     color: var(--text);
   }
   .track-row__play:active { background: var(--accent); color: #05240f; }
+  .track-row__queue:active { background: var(--bg-hover); color: var(--accent); }
 
   .graph-legend { padding: 0.5rem 0.9rem; }
   .graph-legend__summary { display: flex; }
