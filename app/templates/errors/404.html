@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Not found — Feature Network{% endblock %}
+{% block main_class %}page page--centered{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <p class="hero__status">404</p>
+  <h1 class="hero__title hero__title--sm">Nothing here</h1>
+  <p class="hero__subtitle">{{ message or "That page does not exist." }}</p>
+  <a href="{{ url_for('main.playlists') }}" class="btn btn--primary">Your playlists</a>
+</section>
+{% endblock %}

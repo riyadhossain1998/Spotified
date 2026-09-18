@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Your playlists — Feature Network{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/playlists.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <h1 class="section-head__title">Your playlists</h1>
+  <p class="section-head__subtitle">
+    Pick a playlist to build its feature network. The first build fetches from
+    Spotify and is cached, so returning to it later is instant.
+  </p>
+  <label class="search">
+    <input type="search" id="playlist-search" placeholder="Filter playlists…" autocomplete="off">
+  </label>
+</section>
+
+<div id="playlist-status" class="status" role="status"></div>
+
+<div id="playlist-grid" class="playlist-grid"></div>
+
+<div class="load-more">
+  <button id="load-more" class="btn btn--ghost" hidden>Load more</button>
+</div>
+
+<template id="playlist-card-template">
+  <a class="playlist-card" href="#">
+    <div class="playlist-card__art">
+      <img alt="" loading="lazy">
+      <span class="playlist-card__badge" hidden>Cached</span>
+    </div>
+    <div class="playlist-card__body">
+      <h2 class="playlist-card__name"></h2>
+      <p class="playlist-card__meta"></p>
+    </div>
+  </a>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { initPlaylistsPage } from "{{ url_for('static', filename='js/pages/playlistsPage.js') }}";
+  initPlaylistsPage({ likedSongsId: {{ liked_songs_id | tojson }} });
+</script>
+{% endblock %}

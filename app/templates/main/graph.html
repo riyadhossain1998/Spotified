@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Feature network — Feature Network{% endblock %}
+{% block body_class %}body--graph{% endblock %}
+{% block main_class %}graph-page{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/graph.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="graph-toolbar">
+  <div class="graph-toolbar__identity">
+    <img id="graph-playlist-art" class="graph-toolbar__art" alt="" hidden>
+    <div>
+      <h1 id="graph-playlist-name" class="graph-toolbar__title">Loading…</h1>
+      <p id="graph-playlist-stats" class="graph-toolbar__stats"></p>
+    </div>
+  </div>
+
+  <div class="graph-toolbar__controls">
+    {# View switcher. Genre mode renders disabled until its builder is enabled. #}
+    <div class="mode-switch" role="group" aria-label="Graph mode">
+      {% for m in modes %}
+        <button
+          class="mode-switch__btn {% if m.mode == default_mode %}is-active{% endif %}"
+          data-mode="{{ m.mode }}"
+          title="{{ m.description }}{% if not m.available %} (coming soon){% endif %}"
+          {% if not m.available %}disabled{% endif %}>
+          {{ m.label }}
+        </button>
+      {% endfor %}
+    </div>
+
+    <label class="toggle">
+      <input type="checkbox" id="toggle-solo">
+      <span>Hide unconnected</span>
+    </label>
+
+    <label class="search search--sm">
+      <input type="search" id="node-search" placeholder="Find an artist…" autocomplete="off">
+    </label>
+
+    <button id="btn-rebuild" class="btn btn--ghost btn--sm" title="Re-fetch from Spotify">
+      Rebuild
+    </button>
+    <a href="{{ url_for('main.playlists') }}" class="btn btn--ghost btn--sm">Back</a>
+  </div>
+</div>
+
+<div class="graph-body">
+  <div id="graph-canvas" class="graph-canvas">
+    <div id="graph-loader" class="loader">
+      <div class="loader__spinner"></div>
+      <p id="graph-loader-text" class="loader__text">Loading playlist…</p>
+      <p class="loader__hint">
+        First builds pull every track and artist from Spotify. Later visits read the cache.
+      </p>
+    </div>
+  </div>
+
+  {# Detail panel: fed by both node clicks (artist's tracks) and link clicks
+     (tracks two artists share). #}
+  <aside id="detail-panel" class="detail-panel" aria-live="polite">
+    <div class="detail-panel__empty">
+      <h2>Nothing selected</h2>
+      <p>Click an <strong>artist</strong> to list their songs on this playlist.</p>
+      <p>Click a <strong>connection</strong> to list the songs two artists share.</p>
+    </div>
+  </aside>
+</div>
+
+<div id="graph-legend" class="graph-legend">
+  <span><i class="legend-dot legend-dot--primary"></i> Main artist</span>
+  <span><i class="legend-dot"></i> Node size = songs on playlist</span>
+  <span><i class="legend-line"></i> Line thickness = shared songs</span>
+  <span class="graph-legend__hint">Scroll to zoom · drag to pan · drag a node to pin</span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script type="module">
+  import { initGraphPage } from "{{ url_for('static', filename='js/pages/graphPage.js') }}";
+  initGraphPage({
+    playlistId: {{ playlist_id | tojson }},
+    defaultMode: {{ default_mode | tojson }},
+  });
+</script>
+{% endblock %}

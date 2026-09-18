@@ -1,0 +1,11 @@
+# Runtime
+Flask==3.0.3
+spotipy==2.24.0
+pandas==2.2.3
+python-dotenv==1.0.1
+
+# WSGI server for non-development use
+gunicorn==22.0.0
+
+# Development / test
+pytest==8.3.3

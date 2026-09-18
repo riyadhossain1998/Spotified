@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Feature Network{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  {% block styles %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+
+  <header class="topbar">
+    <a class="topbar__brand" href="{{ url_for('main.landing') }}">
+      <span class="topbar__mark"></span>
+      Feature Network
+    </a>
+
+    <nav class="topbar__nav">
+      {% if current_user %}
+        <a href="{{ url_for('main.playlists') }}" class="topbar__link">Playlists</a>
+        <div class="topbar__user">
+          {% if current_user.image_url %}
+            <img class="topbar__avatar" src="{{ current_user.image_url }}" alt="">
+          {% endif %}
+          <span>{{ current_user.display_name }}</span>
+        </div>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn--ghost btn--sm">Sign out</a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}" class="btn btn--primary btn--sm">Sign in with Spotify</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flashes">
+        {% for category, message in messages %}
+          <div class="flash flash--{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main class="{% block main_class %}page{% endblock %}">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

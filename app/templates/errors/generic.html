@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}{{ status }} — Feature Network{% endblock %}
+{% block main_class %}page page--centered{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <p class="hero__status">{{ status }}</p>
+  <h1 class="hero__title hero__title--sm">Something went wrong</h1>
+  <p class="hero__subtitle">{{ message }}</p>
+  <a href="{{ url_for('main.landing') }}" class="btn btn--primary">Start over</a>
+</section>
+{% endblock %}

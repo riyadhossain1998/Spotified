@@ -1,0 +1,27 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Spotipy's default on-disk token cache. Should never appear -- tokens live in
+# the Flask session -- but guard against a stray script writing one.
+.cache
+.cache-*
+
+# Generated graph cache
+data/cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

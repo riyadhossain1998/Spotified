@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Feature Network — Visualise your playlists{% endblock %}
+{% block main_class %}page page--centered{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1 class="hero__title">See who your playlists really connect.</h1>
+  <p class="hero__subtitle">
+    Sign in with Spotify, pick any playlist, and Feature Network maps every artist
+    on it as a node — linked to everyone they share a track with.
+  </p>
+
+  <a href="{{ url_for('auth.login') }}" class="btn btn--primary btn--lg">
+    Sign in with Spotify
+  </a>
+
+  <ul class="hero__points">
+    <li><strong>Artists as nodes</strong> — sized by how many songs they appear on.</li>
+    <li><strong>Click an artist</strong> — see every track of theirs on that playlist.</li>
+    <li><strong>Click a connection</strong> — see the songs two artists made together.</li>
+  </ul>
+
+  <p class="hero__note">
+    Read-only access to your playlists and library. Playback control is optional
+    and only used when you click a track.
+  </p>
+</section>
+{% endblock %}

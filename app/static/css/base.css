@@ -1,0 +1,303 @@
+/* Design tokens and shared primitives.
+   Page-specific rules live in playlists.css / graph.css. */
+
+:root {
+  --bg:            #121212;
+  --bg-elevated:   #181818;
+  --bg-hover:      #232323;
+  --border:        #2a2a2a;
+  --text:          #f5f5f5;
+  --text-muted:    #a7a7a7;
+  --accent:        #1db954;
+  --accent-hover:  #1ed760;
+  --danger:        #e2564a;
+  --radius:        8px;
+  --radius-lg:     14px;
+  --topbar-height: 60px;
+
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ---------------------------------------------------------------- topbar */
+
+.topbar {
+  height: var(--topbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.topbar__mark {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(29, 185, 84, 0.18);
+}
+
+.topbar__nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.topbar__link { color: var(--text-muted); font-size: 0.9rem; }
+.topbar__link:hover { color: var(--text); }
+
+.topbar__user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.topbar__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* ---------------------------------------------------------------- layout */
+
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+.page--centered {
+  min-height: calc(100vh - var(--topbar-height));
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------ hero */
+
+.hero { max-width: 640px; }
+
+.hero__status {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--accent);
+  margin: 0;
+}
+
+.hero__title {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0 0 1rem;
+}
+
+.hero__title--sm { font-size: 1.8rem; }
+
+.hero__subtitle {
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  margin: 0 0 2rem;
+}
+
+.hero__points {
+  list-style: none;
+  padding: 0;
+  margin: 2.5rem 0 0;
+  text-align: left;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.hero__points li {
+  padding-left: 1.5rem;
+  position: relative;
+  color: var(--text-muted);
+}
+
+.hero__points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.hero__note {
+  margin-top: 2.5rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.6rem 1.25rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s, opacity 0.15s;
+  white-space: nowrap;
+}
+
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn--primary { background: var(--accent); color: #05240f; }
+.btn--primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+.btn--ghost:hover:not(:disabled) { border-color: var(--text-muted); color: var(--text); }
+
+.btn--sm { padding: 0.4rem 0.9rem; font-size: 0.85rem; }
+.btn--lg { padding: 0.85rem 2rem; font-size: 1.05rem; }
+
+/* --------------------------------------------------------------- inputs */
+
+.search { display: block; }
+
+.search input {
+  width: 100%;
+  max-width: 340px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font: inherit;
+  padding: 0.55rem 1rem;
+}
+
+.search input::placeholder { color: var(--text-muted); }
+.search input:focus { outline: none; border-color: var(--accent); }
+.search--sm input { max-width: 200px; padding: 0.35rem 0.85rem; font-size: 0.85rem; }
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle input { accent-color: var(--accent); cursor: pointer; }
+
+/* -------------------------------------------------------- flash / status */
+
+.flashes {
+  max-width: 1200px;
+  margin: 1rem auto 0;
+  padding: 0 1.5rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.flash {
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  font-size: 0.9rem;
+}
+
+.flash--error { border-color: var(--danger); color: #ffb3ac; }
+.flash--info  { border-color: var(--accent); }
+
+.status {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  min-height: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.status--error { color: #ffb3ac; }
+
+/* ---------------------------------------------------------- section head */
+
+.section-head { margin-bottom: 2rem; }
+
+.section-head__title {
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.4rem;
+}
+
+.section-head__subtitle {
+  color: var(--text-muted);
+  margin: 0 0 1.25rem;
+  max-width: 60ch;
+}
+
+/* --------------------------------------------------------------- loader */
+
+.loader {
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  text-align: center;
+  padding: 4rem 1.5rem;
+}
+
+.loader__spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loader__text { margin: 0; font-weight: 600; }
+.loader__hint { margin: 0; font-size: 0.82rem; color: var(--text-muted); max-width: 42ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  .loader__spinner { animation-duration: 3s; }
+  .btn:active { transform: none; }
+}
