@@ -76,12 +76,15 @@
       </aside>
     </div>
 
-    <div id="graph-legend" class="graph-legend">
-      <span><i class="legend-dot legend-dot--primary"></i> Main artist</span>
-      <span><i class="legend-dot"></i> Node size = songs on playlist</span>
-      <span><i class="legend-line"></i> Line thickness = shared songs</span>
-      <span class="graph-legend__hint">Scroll to zoom · drag to pan · drag a node to pin</span>
-    </div>
+    <details id="graph-legend" class="graph-legend" open>
+      <summary class="graph-legend__summary">How to read this graph</summary>
+      <div class="graph-legend__items">
+        <span><i class="legend-dot legend-dot--primary"></i> Main artist</span>
+        <span><i class="legend-dot"></i> Node size = songs on playlist</span>
+        <span><i class="legend-line"></i> Line thickness = shared songs</span>
+        <span class="graph-legend__hint">Scroll to zoom · drag to pan · drag a node to pin</span>
+      </div>
+    </details>
   </main>
 
   <script src="https://d3js.org/d3.v7.min.js"></script>

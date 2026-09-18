@@ -30,6 +30,7 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
+      height: 100dvh; /* survives the mobile address bar collapsing */
     }
     body.body--graph .graph-page {
       height: auto;
@@ -55,6 +56,13 @@
     .demo-banner strong { color: var(--text); }
     .demo-banner__spacer { flex: 1 1 auto; }
     .demo-banner a.btn { flex: 0 0 auto; }
+
+    /* On a phone the banner is three wrapped lines of preamble sitting on top
+       of the thing it is describing. The graph is the pitch; let it have the
+       screen. "Run it yourself" still lives in the repo link in the topbar. */
+    @media (max-width: 700px) {
+      .demo-banner { display: none; }
+    }
   </style>
 </head>
 <body class="body--graph">
@@ -130,12 +138,18 @@
       </aside>
     </div>
 
-    <div id="graph-legend" class="graph-legend">
-      <span><i class="legend-dot legend-dot--primary"></i> Main artist</span>
-      <span><i class="legend-dot"></i> Node size = songs on playlist</span>
-      <span><i class="legend-line"></i> Line thickness = shared songs</span>
-      <span class="graph-legend__hint">Scroll to zoom · drag to pan · drag a node to pin</span>
-    </div>
+    <!-- A <details> so chrome.js can collapse it on a phone without the legend
+         needing a bespoke show/hide of its own. Open by default: on a desktop
+         the summary is hidden and this is simply a row. -->
+    <details id="graph-legend" class="graph-legend" open>
+      <summary class="graph-legend__summary">How to read this graph</summary>
+      <div class="graph-legend__items">
+        <span><i class="legend-dot legend-dot--primary"></i> Main artist</span>
+        <span><i class="legend-dot"></i> Node size = songs on playlist</span>
+        <span><i class="legend-line"></i> Line thickness = shared songs</span>
+        <span class="graph-legend__hint">Scroll to zoom · drag to pan · drag a node to pin</span>
+      </div>
+    </details>
   </main>
 
   <script src="https://d3js.org/d3.v7.min.js"></script>

@@ -28,6 +28,7 @@ CSS = ["base.css", "graph.css", "playlists.css"]
 JS = [
     "format.js",
     "graph/artistNetworkView.js",
+    "graph/chrome.js",
     "graph/detailPanel.js",
     "pages/demoPage.js",
 ]

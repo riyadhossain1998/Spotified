@@ -14,6 +14,7 @@
 
 import { formatNumber, pluralise } from "../format.js";
 import { ArtistNetworkView } from "../graph/artistNetworkView.js";
+import { initGraphChrome } from "../graph/chrome.js";
 import { DetailPanel } from "../graph/detailPanel.js";
 
 export async function initDemoPage({ payloadUrl }) {
@@ -29,6 +30,7 @@ export async function initDemoPage({ payloadUrl }) {
     onPlayTrack: () => {
       throw new Error("Playback needs the live app and a Spotify Premium device.");
     },
+    onClose: () => view?.clearSelection(),
   });
 
   let view = null;
@@ -59,6 +61,7 @@ export async function initDemoPage({ payloadUrl }) {
       onClearSelection: () => panel.reset(),
     });
     view.render(graph);
+    initGraphChrome(view);
 
     loader.hidden = true;
   } catch (error) {

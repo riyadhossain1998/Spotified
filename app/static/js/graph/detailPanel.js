@@ -12,11 +12,57 @@
 import { formatCompact, formatDuration, formatYear, pluralise } from "../format.js";
 
 export class DetailPanel {
-  constructor(element, { onPlayTrack } = {}) {
+  constructor(element, { onPlayTrack, onClose } = {}) {
     this.element = element;
     this.onPlayTrack = onPlayTrack || (() => {});
+    this.onClose = onClose || (() => {});
     this.graph = null;
     this.emptyMarkup = element.innerHTML; // keep the initial hint to restore later
+
+    // Dismissed by the user, as opposed to merely empty. The empty state is
+    // the only instructions a first-time visitor gets, so it shows until they
+    // say otherwise -- and once they do, clicking away must not bring it back.
+    this.dismissed = false;
+
+    this._addCloseButton();
+  }
+
+  /**
+   * The button is created here rather than written into the three page shells
+   * because every selection calls replaceChildren() on this element. Markup
+   * would survive exactly until the first click.
+   */
+  _addCloseButton() {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "detail-panel__close";
+    button.setAttribute("aria-label", "Close panel");
+    button.textContent = "✕";
+    button.addEventListener("click", () => this.close());
+
+    // Not part of the content, so it sits outside everything replaceChildren
+    // touches: prepended after each render instead of living among the nodes.
+    this.closeButton = button;
+    this.element.prepend(button);
+  }
+
+  close() {
+    this.dismissed = true;
+    this.element.classList.add("is-closed");
+    // Closing means "back to the graph", so the highlight that came with the
+    // selection goes too -- otherwise the page is left dimmed around an artist
+    // whose details are no longer on screen.
+    this.onClose();
+  }
+
+  _open() {
+    this.dismissed = false;
+    this.element.classList.remove("is-closed");
+  }
+
+  /** Re-attach the close button after content has been swapped out. */
+  _render(...children) {
+    this.element.replaceChildren(this.closeButton, ...children);
   }
 
   setGraph(graph) {
@@ -25,8 +71,14 @@ export class DetailPanel {
     this.nodeIndex = new Map(graph.nodes.map((n) => [n.id, n]));
   }
 
+  /**
+   * Back to the instructions. Visibility is deliberately left alone: clicking
+   * empty canvas clears a selection, which is not a request to re-open a panel
+   * the user has already dismissed.
+   */
   reset() {
     this.element.innerHTML = this.emptyMarkup;
+    this.element.prepend(this.closeButton);
   }
 
   // ------------------------------------------------------------------
@@ -37,7 +89,8 @@ export class DetailPanel {
     const tracks = this._resolveTracks(node.track_ids);
     tracks.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
 
-    this.element.replaceChildren(
+    this._open();
+    this._render(
       this._nodeHeader(node),
       this._trackSection(
         `${pluralise(tracks.length, "song")} on this playlist`,
@@ -89,7 +142,8 @@ export class DetailPanel {
     const tracks = this._resolveTracks(link.track_ids);
     tracks.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
 
-    this.element.replaceChildren(
+    this._open();
+    this._render(
       this._linkHeader(source, target, tracks.length),
       this._trackSection(`${pluralise(tracks.length, "song")} together`, tracks)
     );

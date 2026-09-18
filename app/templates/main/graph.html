@@ -70,12 +70,17 @@
   </aside>
 </div>
 
-<div id="graph-legend" class="graph-legend">
-  <span><i class="legend-dot legend-dot--primary"></i> Main artist</span>
-  <span><i class="legend-dot"></i> Node size = songs on playlist</span>
-  <span><i class="legend-line"></i> Line thickness = shared songs</span>
-  <span class="graph-legend__hint">Scroll to zoom · drag to pan · drag a node to pin</span>
-</div>
+{# A <details> so chrome.js can collapse it on a phone. Open by default: on a
+   desktop the summary is hidden and this is simply a row. #}
+<details id="graph-legend" class="graph-legend" open>
+  <summary class="graph-legend__summary">How to read this graph</summary>
+  <div class="graph-legend__items">
+    <span><i class="legend-dot legend-dot--primary"></i> Main artist</span>
+    <span><i class="legend-dot"></i> Node size = songs on playlist</span>
+    <span><i class="legend-line"></i> Line thickness = shared songs</span>
+    <span class="graph-legend__hint">Scroll to zoom · drag to pan · drag a node to pin</span>
+  </div>
+</details>
 {% endblock %}
 
 {% block scripts %}

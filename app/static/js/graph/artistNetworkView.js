@@ -41,11 +41,16 @@ export class ArtistNetworkView {
     this.selection = null;      // { type: "node" | "link", id }
     this.hideUnconnected = false;
     this.simulation = null;
+    this.userHasZoomed = false;
+    // Height at the bottom of the canvas that something else is sitting on --
+    // the mobile detail sheet. The SVG still extends under it, so only the
+    // framing needs to know, not the layout.
+    this.bottomInset = 0;
 
     this._buildScaffold();
 
     // Re-centre the forces when the window changes size.
-    this._onResize = this._debounce(() => this._handleResize(), 200);
+    this._onResize = this._debounce(() => this.resize(), 200);
     window.addEventListener("resize", this._onResize);
   }
 
@@ -77,6 +82,10 @@ export class ArtistNetworkView {
       .zoom()
       .scaleExtent([0.15, 6])
       .on("zoom", (event) => {
+        // sourceEvent is absent for programmatic transforms, which is how the
+        // auto-fit below tells "the user has framed this themselves" from its
+        // own work -- and never overrides the former.
+        if (event.sourceEvent) this.userHasZoomed = true;
         this.viewport.attr("transform", event.transform);
         this._applyLabelVisibility(event.transform.k);
       });
@@ -90,6 +99,17 @@ export class ArtistNetworkView {
       width: Math.max(rect.width || 960, 320),
       height: Math.max(rect.height || 600, 320),
     };
+  }
+
+  /**
+   * The canvas height that is not behind the detail sheet. Framing works
+   * against this rather than the full height, or a graph centred "in the
+   * canvas" sits with its lower half hidden. Floored at a third of the canvas
+   * so an unusually tall sheet cannot squeeze the graph into a sliver.
+   */
+  _visibleHeight() {
+    const { height } = this._size();
+    return Math.max(height - this.bottomInset, height / 3);
   }
 
   // ------------------------------------------------------------------
@@ -163,6 +183,7 @@ export class ArtistNetworkView {
 
     this.nodes = nodes;
     this.links = links;
+    this._fitted = false;
 
     this.simulation?.stop();
 
@@ -217,7 +238,22 @@ export class ArtistNetworkView {
           .radius((d) => this.radius(d.track_count || 1) + 6)
           .iterations(2)
       )
-      .on("tick", () => this._tick());
+      .on("tick", () => this._tick())
+      // The layout's final size is not knowable up front -- it depends on how
+      // the forces resolve -- so the fit waits for the simulation to settle
+      // rather than guessing at render time. Instantly, because the nodes have
+      // just stopped moving: a half-second zoom-out on top of that reads as a
+      // second, unexplained animation.
+      //
+      // Once per layout, not per settle: resize() nudges the simulation awake
+      // again, and a fit firing after that would undo the framing fullscreen
+      // had just put on the main artist. Someone who has already zoomed or
+      // panned has framed it themselves, which beats any fit.
+      .on("end", () => {
+        if (this._fitted || this.userHasZoomed) return;
+        this._fitted = true;
+        this.fitToContents({ duration: 0 });
+      });
 
     this._applyLabelVisibility(d3.zoomTransform(this.svg.node()).k);
     this._applySelectionStyles();
@@ -378,30 +414,77 @@ export class ArtistNetworkView {
     );
   }
 
-  /** Centre the viewport on a node and select it. */
-  focusNode(nodeId) {
+  /** Centre the viewport on a node, leaving the selection untouched. */
+  centreOn(nodeId, { scale = 1.6, duration = 600 } = {}) {
     const node = this.nodes.find((n) => n.id === nodeId);
-    if (!node) return;
+    if (!node) return false;
 
-    const { width, height } = this._size();
-    const scale = 1.6;
+    const { width } = this._size();
+    const visible = this._visibleHeight();
 
     this.svg
       .transition()
-      .duration(600)
+      .duration(duration)
       .call(
         this.zoom.transform,
         d3.zoomIdentity
-          .translate(width / 2, height / 2)
+          .translate(width / 2, visible / 2)
           .scale(scale)
           .translate(-node.x, -node.y)
       );
 
-    this.selectNode(node);
+    return true;
   }
 
-  resetZoom() {
-    this.svg.transition().duration(400).call(this.zoom.transform, d3.zoomIdentity);
+  /** Centre the viewport on a node and select it. */
+  focusNode(nodeId) {
+    if (!this.centreOn(nodeId)) return;
+    this.selectNode(this.nodes.find((n) => n.id === nodeId));
+  }
+
+  /**
+   * The artist the playlist is built around: the one the builder flagged, or
+   * failing that whoever appears on the most tracks. Used as the natural
+   * landing point when there is no selection to centre on.
+   */
+  get primaryNodeId() {
+    if (!this.nodes.length) return null;
+    const primary =
+      this.nodes.find((n) => n.is_primary) ||
+      this.nodes.reduce((best, n) =>
+        (n.track_count || 0) > (best.track_count || 0) ? n : best
+      );
+    return primary?.id ?? null;
+  }
+
+  /**
+   * Zoom out just far enough that the whole network is on screen.
+   *
+   * Only ever zooms out: the scale is clamped to 1, so a canvas with room to
+   * spare is left at its natural size instead of being magnified into a few
+   * enormous nodes. That makes this a no-op on a desktop and a real fix on a
+   * phone, where a 375px canvas cannot hold a layout laid out for 960.
+   */
+  fitToContents({ duration = 400, padding = 28 } = {}) {
+    if (!this.nodes.length) return;
+
+    const margin = (d) => this.radius(d.track_count || 1) + padding;
+    const minX = d3.min(this.nodes, (d) => d.x - margin(d));
+    const maxX = d3.max(this.nodes, (d) => d.x + margin(d));
+    const minY = d3.min(this.nodes, (d) => d.y - margin(d));
+    const maxY = d3.max(this.nodes, (d) => d.y + margin(d));
+
+    const { width } = this._size();
+    const visible = this._visibleHeight();
+    const scale = Math.min(1, width / (maxX - minX), visible / (maxY - minY));
+
+    const target = d3.zoomIdentity
+      .translate(width / 2, visible / 2)
+      .scale(scale)
+      .translate(-(minX + maxX) / 2, -(minY + maxY) / 2);
+
+    const selection = duration ? this.svg.transition().duration(duration) : this.svg;
+    selection.call(this.zoom.transform, target);
   }
 
   _applyLabelVisibility(zoomScale) {
@@ -413,7 +496,12 @@ export class ArtistNetworkView {
     });
   }
 
-  _handleResize() {
+  /**
+   * Re-centre the forces on the container's current size. Public because the
+   * canvas also changes size without the window doing so -- entering
+   * fullscreen, or the detail panel giving its column back.
+   */
+  resize() {
     if (!this.simulation) return;
     const { width, height } = this._size();
     this.svg.attr("viewBox", [0, 0, width, height]);

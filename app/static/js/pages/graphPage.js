@@ -3,6 +3,7 @@
 import { fetchGraph, fetchGraphStatus, playTrack } from "../api.js";
 import { formatNumber, pluralise } from "../format.js";
 import { ArtistNetworkView } from "../graph/artistNetworkView.js";
+import { initGraphChrome } from "../graph/chrome.js";
 import { DetailPanel } from "../graph/detailPanel.js";
 
 export function initGraphPage({ playlistId, defaultMode }) {
@@ -19,9 +20,11 @@ export function initGraphPage({ playlistId, defaultMode }) {
 
   let mode = defaultMode;
   let view = null;
+  let chrome = null;
 
   const panel = new DetailPanel(document.getElementById("detail-panel"), {
     onPlayTrack: (track) => playTrack(track.id),
+    onClose: () => view?.clearSelection(),
   });
 
   function showLoader(message) {
@@ -97,6 +100,10 @@ export function initGraphPage({ playlistId, defaultMode }) {
       panel.setGraph(graph);
       panel.reset();
 
+      // Both are torn down together: the chrome's controls close over the view
+      // they were given, and its button is a child of the canvas, so leaving it
+      // behind would stack a second one on every rebuild.
+      chrome?.destroy();
       view?.destroy();
       view = new ArtistNetworkView(canvas, {
         onSelectNode: (node) => panel.showNode(node),
@@ -104,6 +111,7 @@ export function initGraphPage({ playlistId, defaultMode }) {
         onClearSelection: () => panel.reset(),
       });
       view.render(graph);
+      chrome = initGraphChrome(view);
 
       // Re-apply controls that survive a reload.
       view.setHideUnconnected(soloToggle.checked);
