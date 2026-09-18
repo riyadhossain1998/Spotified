@@ -26,6 +26,7 @@ STATIC = ROOT / "app" / "static"
 # future server-only module is not silently exposed.
 CSS = ["base.css", "graph.css", "playlists.css"]
 JS = [
+    "analytics.js",
     "format.js",
     "graph/artistNetworkView.js",
     "graph/chrome.js",

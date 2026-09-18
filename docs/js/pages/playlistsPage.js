@@ -6,6 +6,7 @@
  * point at graph.html?playlist=<id> rather than a Flask route.
  */
 
+import { trackVisit } from "../../static/js/analytics.js";
 import { pluralise } from "../../static/js/format.js";
 import { currentUser } from "../auth/session.js";
 import { canReadContents, listPlaylists } from "../spotify/playlists.js";
@@ -15,6 +16,8 @@ const PAGE_SIZE = 50;
 
 export function initPlaylistsPage() {
   if (!requireLogin()) return; // redirecting
+
+  trackVisit();
 
   const user = currentUser();
   renderTopbarUser(user);

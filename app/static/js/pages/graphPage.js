@@ -1,5 +1,6 @@
 /** Graph page controller: wires the API, the D3 view and the detail panel. */
 
+import { trackVisit } from "../analytics.js";
 import { fetchGraph, fetchGraphStatus, playTrack } from "../api.js";
 import { formatNumber, pluralise } from "../format.js";
 import { ArtistNetworkView } from "../graph/artistNetworkView.js";
@@ -7,6 +8,8 @@ import { initGraphChrome } from "../graph/chrome.js";
 import { DetailPanel } from "../graph/detailPanel.js";
 
 export function initGraphPage({ playlistId, defaultMode }) {
+  trackVisit();
+
   const canvas = document.getElementById("graph-canvas");
   const loader = document.getElementById("graph-loader");
   const loaderText = document.getElementById("graph-loader-text");

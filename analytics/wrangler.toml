@@ -1,0 +1,10 @@
+name = "spotified-analytics"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+# Fill database_id in from the output of:
+#   npx wrangler d1 create spotified-analytics
+[[d1_databases]]
+binding = "DB"
+database_name = "spotified-analytics"
+database_id = "PASTE_DATABASE_ID_HERE"

@@ -11,6 +11,7 @@
 
 // ../../static/ is populated by scripts/build_pages.py from app/static/, so the
 // renderer and formatters here are literally the app's own files, not copies.
+import { trackVisit } from "../../static/js/analytics.js";
 import { formatNumber, pluralise } from "../../static/js/format.js";
 import { ArtistNetworkView } from "../../static/js/graph/artistNetworkView.js";
 import { initGraphChrome } from "../../static/js/graph/chrome.js";
@@ -26,6 +27,8 @@ import {
 import { loginAgainButton, renderTopbarUser, requireLogin } from "../ui/topbar.js";
 
 export async function initGraphPage() {
+  trackVisit();
+
   const playlistId = new URLSearchParams(window.location.search).get("playlist");
 
   if (!requireLogin()) return; // redirecting

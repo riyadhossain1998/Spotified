@@ -12,12 +12,15 @@
  * "Open in Spotify instead" link automatically.
  */
 
+import { trackVisit } from "../analytics.js";
 import { formatNumber, pluralise } from "../format.js";
 import { ArtistNetworkView } from "../graph/artistNetworkView.js";
 import { initGraphChrome } from "../graph/chrome.js";
 import { DetailPanel } from "../graph/detailPanel.js";
 
 export async function initDemoPage({ payloadUrl }) {
+  trackVisit();
+
   const canvas = document.getElementById("graph-canvas");
   const loader = document.getElementById("graph-loader");
   const loaderText = document.getElementById("graph-loader-text");

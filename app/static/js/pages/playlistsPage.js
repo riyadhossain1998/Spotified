@@ -1,9 +1,12 @@
 /** Playlist selection grid: fetch, render, filter, paginate. */
 
+import { trackVisit } from "../analytics.js";
 import { fetchPlaylists } from "../api.js";
 import { pluralise } from "../format.js";
 
 export function initPlaylistsPage({ likedSongsId }) {
+  trackVisit();
+
   const grid = document.getElementById("playlist-grid");
   const status = document.getElementById("playlist-status");
   const notice = document.getElementById("playlist-notice");

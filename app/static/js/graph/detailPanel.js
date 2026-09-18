@@ -9,6 +9,7 @@
  * and links carry `track_ids`. No scanning, no cross-referencing.
  */
 
+import { trackArtistClick, trackSongClick, trackSpotifyOpen } from "../analytics.js";
 import { formatCompact, formatDuration, formatYear, pluralise } from "../format.js";
 
 export class DetailPanel {
@@ -88,6 +89,10 @@ export class DetailPanel {
   showNode(node) {
     const tracks = this._resolveTracks(node.track_ids);
     tracks.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+
+    // Every route to an artist ends here -- clicking the node, hitting Enter in
+    // the search box -- so this is the one place that sees all of them.
+    trackArtistClick(node.label);
 
     this._open();
     this._render(
@@ -235,6 +240,8 @@ export class DetailPanel {
   }
 
   async _handlePlay(row, track) {
+    trackSongClick(track.name);
+
     this.element
       .querySelectorAll(".track-row.is-playing")
       .forEach((node) => node.classList.remove("is-playing"));
@@ -256,6 +263,7 @@ export class DetailPanel {
         link.rel = "noopener";
         link.className = "detail-link";
         link.textContent = "Open in Spotify instead";
+        link.addEventListener("click", () => trackSpotifyOpen());
         toast.appendChild(document.createElement("br"));
         toast.appendChild(link);
       }
