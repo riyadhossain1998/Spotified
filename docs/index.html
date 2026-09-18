@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<!--
+  GitHub Pages entry point.
+
+  Pages is a static host, so this page cannot render the real app: there is no
+  Python runtime for Flask, and the OAuth Authorization Code flow needs the
+  client secret to stay server-side. What it *can* do is run the identical D3
+  view over a payload committed as a static file, so the graph and both click
+  interactions are genuinely explorable without an account.
+
+  The stylesheets and modules below are copied verbatim from app/static/ by
+  .github/workflows/pages.yml -- they are not duplicated in the repo.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spotified — playlist collaboration networks</title>
+  <meta name="description" content="Turn a Spotify playlist into an interactive D3 collaboration network. Click an artist for their songs, click a connection for the songs two artists share.">
+
+  <link rel="stylesheet" href="static/css/base.css">
+  <link rel="stylesheet" href="static/css/graph.css">
+  <style>
+    /* Demo-only chrome. Everything else is the app's own CSS. */
+
+    /* graph.css sizes the page as calc(100vh - topbar). This build inserts a
+       banner above it, whose height varies with wrapping, so swap the fixed
+       calc for a flex column that simply fills whatever space is left. */
+    body.body--graph {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    body.body--graph .graph-page {
+      height: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .demo-banner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: .75rem;
+      padding: .6rem 1.25rem;
+      background: rgba(29, 185, 84, .08);
+      border-bottom: 1px solid rgba(29, 185, 84, .22);
+      font-size: .85rem;
+      color: var(--text-muted);
+    }
+    .demo-banner strong { color: var(--text); }
+    .demo-banner__spacer { flex: 1 1 auto; }
+    .demo-banner a.btn { flex: 0 0 auto; }
+  </style>
+</head>
+<body class="body--graph">
+
+  <header class="topbar">
+    <a class="topbar__brand" href="./">
+      <span class="topbar__mark"></span>
+      Spotified
+    </a>
+    <nav class="topbar__nav">
+      <a href="https://github.com/riyadhossain1998/Spotified" class="topbar__link" target="_blank" rel="noopener">Source</a>
+    </nav>
+  </header>
+
+  <div class="demo-banner">
+    <span>
+      <strong>Interactive demo.</strong>
+      Static sample data — no sign-in. Run the app locally to graph your own playlists and Liked Songs.
+    </span>
+    <span class="demo-banner__spacer"></span>
+    <a class="btn btn--ghost btn--sm"
+       href="https://github.com/riyadhossain1998/Spotified#quick-start"
+       target="_blank" rel="noopener">Run it yourself</a>
+  </div>
+
+  <main class="graph-page">
+    <div class="graph-toolbar">
+      <div class="graph-toolbar__identity">
+        <div>
+          <h1 id="graph-playlist-name" class="graph-toolbar__title">Loading…</h1>
+          <p id="graph-playlist-stats" class="graph-toolbar__stats"></p>
+        </div>
+      </div>
+
+      <div class="graph-toolbar__controls">
+        <div class="mode-switch" role="group" aria-label="Graph mode">
+          <button class="mode-switch__btn is-active" data-mode="artist">Artists</button>
+          <button class="mode-switch__btn" data-mode="genre" disabled
+                  title="Genre mode (coming soon)">Genres</button>
+        </div>
+
+        <label class="toggle">
+          <input type="checkbox" id="toggle-solo">
+          <span>Hide unconnected</span>
+        </label>
+
+        <label class="search search--sm">
+          <input type="search" id="node-search" placeholder="Find an artist…" autocomplete="off">
+        </label>
+      </div>
+    </div>
+
+    <div class="graph-body">
+      <div id="graph-canvas" class="graph-canvas">
+        <div id="graph-loader" class="loader">
+          <div class="loader__spinner"></div>
+          <p id="graph-loader-text" class="loader__text">Loading sample graph…</p>
+          <p class="loader__hint">
+            In the live app this payload is built from your account and cached to disk.
+          </p>
+        </div>
+      </div>
+
+      <aside id="detail-panel" class="detail-panel" aria-live="polite">
+        <div class="detail-panel__empty">
+          <h2>Nothing selected</h2>
+          <p>Click an <strong>artist</strong> to list their songs on this playlist.</p>
+          <p>Click a <strong>connection</strong> to list the songs two artists share.</p>
+        </div>
+      </aside>
+    </div>
+
+    <div id="graph-legend" class="graph-legend">
+      <span><i class="legend-dot legend-dot--primary"></i> Main artist</span>
+      <span><i class="legend-dot"></i> Node size = songs on playlist</span>
+      <span><i class="legend-line"></i> Line thickness = shared songs</span>
+      <span class="graph-legend__hint">Scroll to zoom · drag to pan · drag a node to pin</span>
+    </div>
+  </main>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script type="module">
+    import { initDemoPage } from "./static/js/pages/demoPage.js";
+    initDemoPage({ payloadUrl: "./demo-graph.json" });
+  </script>
+</body>
+</html>

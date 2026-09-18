@@ -1,0 +1,60 @@
+name: Deploy demo to GitHub Pages
+
+# The published site is assembled by scripts/build_pages.py, which copies the
+# app's real CSS and D3 modules into docs/. Nothing is duplicated in the repo,
+# so the demo cannot drift from the code the live app runs.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "app/static/**"
+      - "scripts/build_pages.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let an in-flight deploy finish rather than cancelling it half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build site
+        run: python scripts/build_pages.py --output _site
+
+      - name: Fail if a credential reached the payload
+        run: |
+          if grep -rIqE 'cid=|client_secret|SPOTIFY_CLIENT' _site/; then
+            echo "::error::Refusing to publish: build output contains a credential."
+            exit 1
+          fi
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

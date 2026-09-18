@@ -11,6 +11,9 @@
 # Generated graph cache
 data/cache/
 
+# Assembled GitHub Pages output (built by scripts/build_pages.py)
+_site/
+
 # Python
 __pycache__/
 *.py[cod]

@@ -1,0 +1,46 @@
+# Render Blueprint — deploys the real Flask app (the half GitHub Pages cannot run).
+#
+# Render reads this automatically when you create a Blueprint from the repo.
+# The three `sync: false` values are prompted for on first deploy and never
+# stored in git.
+#
+# After the first deploy, copy the assigned URL and:
+#   1. set SPOTIFY_REDIRECT_URI to  https://<your-app>.onrender.com/auth/callback
+#   2. add that exact URI to your app at https://developer.spotify.com/dashboard
+# Spotify does a literal string match, so it must agree character for character.
+
+services:
+  - type: web
+    name: spotified
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    # create_app() reads FLASK_ENV, so this resolves to ProductionConfig.
+    startCommand: gunicorn "app:create_app()" --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    healthCheckPath: /healthz
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.3"
+      - key: FLASK_ENV
+        value: production
+
+      # Signs the session cookie holding the Spotify token. Render generates
+      # this once and keeps it stable across deploys; rotating it logs everyone
+      # out, which is the intended behaviour for a leaked key.
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      - key: SPOTIFY_REDIRECT_URI
+        sync: false
+
+      # The free plan has an ephemeral filesystem and sleeps when idle, so the
+      # graph cache is a warm cache only -- it does not survive a restart.
+      # Correctness is unaffected: a miss just rebuilds from Spotify.
+      - key: FN_CACHE_KEEP_SNAPSHOTS
+        value: "2"

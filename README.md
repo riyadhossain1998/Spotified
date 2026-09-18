@@ -10,6 +10,8 @@ playlist.
 - Click a **link** → the songs those two artists made together.
 - Graphs are cached to disk on first build and served instantly afterwards.
 
+**[▶ Try the interactive demo](https://riyadhossain1998.github.io/Spotified/)** — real data, no sign-in required.
+
 ---
 
 ## Quick start
@@ -58,6 +60,56 @@ python run.py          # http://127.0.0.1:5000
 ```bash
 .venv/bin/python -m pytest tests/ -q     # 42 tests, no network access needed
 ```
+
+---
+
+## Deployment
+
+The app has two halves with different hosting needs, so it is deployed to two places.
+
+### The demo → GitHub Pages
+
+**GitHub Pages cannot host the app itself.** It is a static file host: there is no Python
+runtime for Flask, the OAuth Authorization Code flow requires `SPOTIFY_CLIENT_SECRET` to
+stay server-side, and `GraphStore` needs a writable disk. What Pages *can* do is run the
+identical D3 view over a payload committed as a static file, so the graph and both click
+interactions are genuinely explorable without an account.
+
+`scripts/build_pages.py` assembles the site by copying the app's real CSS and D3 modules
+into `docs/` — nothing is duplicated in the repo, so the demo cannot drift from the code
+the live app runs.
+
+```bash
+python scripts/build_pages.py
+python -m http.server -d _site 8080
+```
+
+`.github/workflows/pages.yml` runs the same script on every push to `main`, and refuses to
+publish if `cid=` or `client_secret` appears anywhere in the output.
+
+To regenerate the sample payload from a legacy export:
+
+```bash
+python scripts/make_demo_graph.py ../weeknd.json docs/demo-graph.json \
+    --name "The Weeknd — Collaboration Network"
+```
+
+### The app → Render
+
+`render.yaml` is a Blueprint: point Render at the repo and it provisions the service,
+generates `FLASK_SECRET_KEY`, and prompts for the three Spotify values. Then:
+
+1. Copy the assigned URL, e.g. `https://spotified.onrender.com`.
+2. Set `SPOTIFY_REDIRECT_URI` to `https://spotified.onrender.com/auth/callback`.
+3. Add that **exact** URI in the Spotify dashboard.
+
+`ProductionConfig` already sets `SESSION_COOKIE_SECURE` and `PREFERRED_URL_SCHEME=https`;
+`SameSite=Lax` is deliberate, since a stricter value would drop the session on the
+OAuth redirect back from Spotify.
+
+Two free-tier caveats worth knowing: instances sleep when idle, so the first request after
+a nap is slow; and the filesystem is ephemeral, which makes the graph cache a warm cache
+only. Neither affects correctness — a cache miss just rebuilds from Spotify.
 
 ---
 
@@ -113,7 +165,14 @@ FeatureNetwork/
 │           └── pages/
 │
 ├── data/cache/graphs/     # generated; gitignored
-├── docs/
+├── docs/                  # GitHub Pages demo source (index.html + demo-graph.json)
+├── scripts/
+│   ├── build_pages.py     # assembles _site/ from docs/ + app/static/
+│   └── make_demo_graph.py # legacy export -> Gen 2 payload, via the real builder
+├── render.yaml            # Render Blueprint for the live Flask app
+├── .github/workflows/
+│   ├── ci.yml             # pytest on 3.10 and 3.12
+│   └── pages.yml          # build + deploy the demo
 └── tests/
 ```
 
@@ -262,9 +321,12 @@ Graph responses carry `X-FN-Cache: hit|miss` and `X-FN-Build-Seconds`.
     { "source": "a1", "target": "a2", "track_ids": ["t1"], "collab_count": 1 }
   ],
   "tracks": {
-    "t1": { "id": "t1", "name": "Song", "artists": [{ "id": "a1", "name": "A1" }],
-            "release_date": "2021-05-01", "release_year": 2021, "duration_ms": 200000,
-            "album_art_url": "...", "popularity": 80, "explicit": false }
+    "t1": { "id": "t1", "name": "Song",
+            "artist_ids": ["a1", "a2"], "artist_names": ["A1", "A2"],
+            "popularity": 80, "duration_ms": 200000, "explicit": false,
+            "preview_url": null, "spotify_url": "...",
+            "album_name": "Album", "album_art_url": "...",
+            "release_date": "2021-05-01", "release_year": 2021 }
   }
 }
 ```
