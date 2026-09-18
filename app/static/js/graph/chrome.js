@@ -6,29 +6,11 @@
  * the height between them is what makes the nodes read as unusably small.
  *
  * Kept out of ArtistNetworkView on purpose -- the view owns the SVG and knows
- * nothing about the page it sits on, which is what lets the planned
- * circle-packing view drop in behind the same interface.
+ * nothing about the page it sits on.
  */
 
 const NARROW_SCREEN = "(max-width: 700px)";
 const FULLSCREEN_CLASS = "is-fullscreen";
-
-/**
- * Retitle the bits of chrome that name what a node is.
- *
- * The mode switch does not reload the page, so anything written into the shell
- * as "artist" has to be corrected here or it survives into genre mode. Both
- * elements are optional: the page shells are allowed to omit either.
- */
-export function applyModeLabels(mode) {
-  const genre = mode === "genre";
-
-  const search = document.getElementById("node-search");
-  if (search) search.placeholder = genre ? "Find a genre…" : "Find an artist…";
-
-  const legend = document.getElementById("legend-primary");
-  if (legend) legend.textContent = genre ? "Top genre" : "Main artist";
-}
 
 /**
  * @param {ArtistNetworkView} view

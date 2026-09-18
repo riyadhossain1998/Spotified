@@ -9,13 +9,11 @@ from __future__ import annotations
 
 from app.graph.builders.artist_network import ArtistNetworkBuilder
 from app.graph.builders.base import GraphBuilder, MetadataResolver
-from app.graph.builders.genre_network import GenreNetworkBuilder
 
 DEFAULT_MODE = ArtistNetworkBuilder.mode
 
 _REGISTRY: dict[str, type[GraphBuilder]] = {
     ArtistNetworkBuilder.mode: ArtistNetworkBuilder,
-    GenreNetworkBuilder.mode: GenreNetworkBuilder,
 }
 
 
@@ -46,7 +44,6 @@ def available_modes() -> list[dict[str, object]]:
 __all__ = [
     "DEFAULT_MODE",
     "ArtistNetworkBuilder",
-    "GenreNetworkBuilder",
     "GraphBuilder",
     "MetadataResolver",
     "available_modes",

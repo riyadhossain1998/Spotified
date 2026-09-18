@@ -1,9 +1,9 @@
 """Graph builder interface.
 
 A builder turns (playlist, tracks) into a `Graph`. Making this a strategy
-rather than a single function is what lets the "swap between artist and genre
-classification" feature land as a new class plus one registry entry, with no
-changes to the service, cache, API or template layers.
+rather than a single function means a new way of classifying a playlist lands
+as a new class plus one registry entry, with no changes to the service, cache,
+API or template layers.
 
 Contract for every builder:
   * `mode` is the stable string used in URLs and cache paths.
@@ -31,7 +31,7 @@ class MetadataResolver(Protocol):
 
 
 class GraphBuilder(ABC):
-    #: URL/cache identifier, e.g. "artist" or "genre".
+    #: URL/cache identifier, e.g. "artist".
     mode: str = ""
 
     #: Shown in the UI's view switcher.

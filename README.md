@@ -186,7 +186,6 @@ FeatureNetwork/
 │   │   └── builders/
 │   │       ├── base.py             # GraphBuilder ABC + MetadataResolver Protocol
 │   │       ├── artist_network.py   # ★ the MVP algorithm
-│   │       ├── genre_network.py    # future mode (available = False)
 │   │       └── __init__.py         # mode registry
 │   │
 │   ├── storage/
@@ -202,8 +201,7 @@ FeatureNetwork/
 │           ├── format.js
 │           ├── graph/
 │           │   ├── artistNetworkView.js        # ★ the D3 force simulation
-│           │   ├── detailPanel.js              # node-click and link-click panels
-│           │   └── genreCirclePackingView.js   # future circle-packing stub
+│           │   └── detailPanel.js              # node-click and link-click panels
 │           └── pages/
 │
 ├── data/cache/graphs/     # generated; gitignored
@@ -300,7 +298,8 @@ mutated. Using it as the cache key means:
   TTLs to guess at, no stale graphs.
 - **Cheap probe.** `service._resolve_ref()` fetches *only* the metadata fields
   (`snapshot_id`, `name`, `images`, …) before deciding whether to fetch tracks at all.
-- **Mode isolation.** `artist/` and `genre/` graphs never collide.
+- **Mode isolation.** The mode is the first path segment, so graphs built two different
+  ways over the same playlist never collide.
 
 Other properties worth knowing:
 
@@ -444,25 +443,25 @@ Everything is environment-driven; see `.env.example`.
 
 The future features were designed for rather than retrofitted:
 
-**Genre mode.** Modes go through a registry, so the UI and API discover them rather than
-hardcoding them:
+**New ways to classify a playlist.** Builders go through a registry, so the UI and API
+discover modes rather than hardcoding them:
 
 ```python
-_REGISTRY = {"artist": ArtistNetworkBuilder, "genre": GenreNetworkBuilder}
+_REGISTRY = {"artist": ArtistNetworkBuilder}
 DEFAULT_MODE = "artist"
 ```
 
-`GenreNetworkBuilder.available = False`, so `/api/modes` reports it as unavailable, the
-mode switcher renders it disabled, and requesting it returns `409 mode_unavailable`.
-Shipping it means implementing one `build()` method — no route, template, or cache changes.
-Genre names are already normalised through `GENRE_ALIASES` / `normalise_genre()`, because
-Spotify's genre strings are inconsistent (`"hip hop"` / `"hiphop"` / `"rap"`).
+Adding one means writing a `GraphBuilder` subclass with a single `build()` method and one
+line in `_REGISTRY`. Routes, the snapshot cache and the templates pick it up untouched:
+`/api/modes` advertises it, `?mode=` accepts it, and the cache files it under its own
+directory. A builder ships with `available = False` until it is ready, which makes
+requesting it a `409 mode_unavailable` rather than a half-working graph.
 
-**Zoomable circle packing.** `GenreNetworkBuilder.build_hierarchy()` is *already
-implemented* and emits the genre → artist → track nesting that `d3.hierarchy()`/`d3.pack()`
-consume. `genreCirclePackingView.js` is a stub exposing the same interface as
-`ArtistNetworkView` (`render`, `selectNode`, `destroy`, …), so `graphPage.js` can swap views
-without knowing which one it holds.
+A genre mode was built on this and then removed. It worked mechanically, but Spotify
+attaches genres to artists and never to tracks, and in 2026 coarsened the vocabulary to
+the point where a playlist collapsed into a handful of buckets — too blunt to be worth a
+view. The extension point is the part that was worth keeping; artist genres still show as
+chips in the detail panel.
 
 **Liked Songs.** Already shipping. `LIKED_SONGS_ID = "__liked_songs__"` is routed by
 `service._load_source()` to `spotify/library.py` instead of `spotify/playlists.py`;

@@ -11,7 +11,7 @@ from flask import Blueprint, redirect, render_template, url_for
 
 from app.auth.decorators import login_required
 from app.auth.session import is_authenticated
-from app.graph.builders import DEFAULT_MODE, available_modes
+from app.graph.builders import DEFAULT_MODE
 from app.graph.models import LIKED_SONGS_ID
 
 main_bp = Blueprint("main", __name__)
@@ -37,7 +37,6 @@ def graph(playlist_id: str):
         "main/graph.html",
         playlist_id=playlist_id,
         default_mode=DEFAULT_MODE,
-        modes=available_modes(),
     )
 
 

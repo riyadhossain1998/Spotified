@@ -36,9 +36,14 @@ def test_new_snapshot_misses(store):
 
 
 def test_modes_are_isolated(store):
+    """Two modes over one playlist must not read each other's cache.
+
+    The store takes the mode as an opaque path segment, so an unregistered
+    name is the honest way to test the isolation rather than the registry.
+    """
     store.put("artist", "pl1", "snap1", PAYLOAD)
 
-    assert store.get("genre", "pl1", "snap1") is None
+    assert store.get("other", "pl1", "snap1") is None
 
 
 def test_old_snapshots_are_pruned(store):

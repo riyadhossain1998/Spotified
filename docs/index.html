@@ -101,13 +101,6 @@
       </div>
 
       <div class="graph-toolbar__controls">
-        <div class="mode-switch" role="group" aria-label="Graph mode">
-          <button class="mode-switch__btn is-active" data-mode="artist"
-                  title="One node per artist, linked by the songs they share">Artists</button>
-          <button class="mode-switch__btn" data-mode="genre"
-                  title="One node per genre, linked by the songs that span both">Genres</button>
-        </div>
-
         <label class="toggle">
           <input type="checkbox" id="toggle-solo">
           <span>Hide unconnected</span>
@@ -161,12 +154,7 @@
     // The demo graph needs no account, so it renders regardless of whether
     // login is even configured. Wire the button separately for that reason.
     initHomeLogin();
-    initDemoPage({
-      payloads: {
-        artist: "./demo-graph.json",
-        genre: "./demo-graph-genre.json",
-      },
-    });
+    initDemoPage({ payload: "./demo-graph.json" });
   </script>
 </body>
 </html>

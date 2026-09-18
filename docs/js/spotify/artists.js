@@ -10,9 +10,9 @@
  * whole feature: ~60 requests per graph exhausted the app's rate limit, Spotify
  * answered with a `Retry-After` longer than client.js is willing to wait, and
  * so *every* lookup failed rather than a few. Unresolved artists fall back to
- * their track credit -- no image, no genres -- so nodes rendered as placeholder
- * "?" circles and the genre graph collapsed to a single `unclassified` node.
- * Batching is therefore a correctness fix, not an optimisation.
+ * their track credit, which carries a name and nothing else, so every node in
+ * the graph rendered as a placeholder "?" circle. Batching is therefore a
+ * correctness fix, not an optimisation.
  *
  * A session-lifetime cache sits in front of all of it, because artists recur
  * heavily across playlists and their metadata does not change within a sitting.
@@ -134,7 +134,12 @@ export async function fetchArtists(artistIds, { onProgress } = {}) {
         }
       } catch (error) {
         if (error.needsLogin) throw error; // a dead session will not fix itself
-        // Anything else leaves this batch unresolved and is counted below.
+        // Anything else leaves this batch unresolved. Name the status: the last
+        // time every lookup failed, the silent catch cost days of guessing at
+        // whether it was the rate limit, the endpoint or the token.
+        console.warn(
+          `Artist batch of ${batch.length} failed (HTTP ${error.status}): ${error.message}`
+        );
       }
       done += batch.length;
       onProgress?.(done, unique.length);

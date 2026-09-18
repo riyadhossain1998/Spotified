@@ -80,29 +80,6 @@
   flex-wrap: wrap;
 }
 
-.mode-switch {
-  display: inline-flex;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 2px;
-}
-
-.mode-switch__btn {
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0.35rem 0.9rem;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.mode-switch__btn.is-active { background: var(--accent); color: #05240f; }
-.mode-switch__btn:disabled { opacity: 0.35; cursor: not-allowed; }
-
 /* -------------------------------------------------------------- canvas */
 
 .graph-body {
@@ -176,11 +153,10 @@
 
 .node { cursor: pointer; }
 
-/* The group, not the images inside it. A genre node is tiled from two to four
-   faces that have to be clipped as one circle; clipping each image separately
-   would draw four small circles instead. The reference box is the group's
-   bounding box, which the tiles fill exactly. */
-.node__mosaic { clip-path: circle(50%); }
+/* The artist's picture arrives square and is cropped to the node's circle
+   here rather than through an SVG <clipPath>, which would need one element and
+   one id per node. The reference box is the image's own bounding box. */
+.node__face { clip-path: circle(50%); }
 
 .node__ring {
   fill: none;
@@ -316,58 +292,17 @@
   margin: 0 0 0.6rem;
 }
 
-/* The artists behind a genre node. Denser than a track row on purpose: this
-   is context for the songs below it, not the thing being read. */
-.member-list {
-  list-style: none;
-  margin: 0 0 1.25rem;
-  padding: 0;
-  display: grid;
-  gap: 1px;
-}
-
-.member {
-  display: grid;
-  grid-template-columns: 24px 1fr auto;
-  gap: 0.6rem;
-  align-items: center;
-  padding: 0.25rem 0.45rem;
-  font-size: 0.82rem;
-}
-
-.member__face {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: var(--bg-hover);
-}
-
-.member__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.member__count { color: var(--text-muted); font-size: 0.75rem; }
-
-.member-list__more {
-  margin: -1rem 0 1.25rem;
-  padding-left: 0.45rem;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
 .track-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 
+/* Art, text, duration, play. The play column is a fixed width rather than
+   auto so the durations in a list still line up under each other. */
 .track-row {
   display: grid;
-  grid-template-columns: 36px 1fr auto;
+  grid-template-columns: 36px 1fr auto 28px;
   gap: 0.7rem;
   align-items: center;
   padding: 0.45rem;
   border-radius: 6px;
-  cursor: pointer;
   transition: background 0.12s;
 }
 
@@ -406,6 +341,36 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Dim at rest so a long list reads as songs rather than as a column of green
+   buttons, full strength once the row is under the pointer. It keeps its box
+   either way -- fading is what stops the row reflowing on hover. */
+.track-row__play {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+
+.track-row__play svg { width: 16px; height: 16px; fill: currentColor; }
+
+.track-row:hover .track-row__play,
+.track-row__play:focus-visible {
+  opacity: 1;
+  background: var(--accent);
+  color: #05240f;
+}
+
+.track-row.is-playing .track-row__play { opacity: 1; color: var(--accent); }
+.track-row.is-playing:hover .track-row__play { color: #05240f; }
+
 .detail-link {
   display: inline-block;
   margin-top: 1rem;
@@ -413,11 +378,15 @@
   color: var(--accent);
 }
 
+/* A row in the track list, so it lands directly under the song it explains. */
 .detail-toast {
-  margin-top: 0.75rem;
+  margin: 0.15rem 0 0.4rem;
+  padding: 0 0.45rem 0 calc(36px + 0.7rem + 0.45rem);
   font-size: 0.78rem;
   color: #ffb3ac;
 }
+
+.detail-toast .detail-link { margin-top: 0.15rem; }
 
 /* -------------------------------------------------------------- legend */
 
@@ -498,10 +467,8 @@
   .graph-toolbar__title { font-size: 0.95rem; max-width: 100%; }
   .graph-toolbar__art { width: 34px; height: 34px; }
 
-  /* Mode switch is one live option and a disabled one, and "Hide unconnected"
-     is a power-user toggle; neither earns a row on a 390px screen. Search does,
-     so it stays and takes the width the other two gave up. */
-  .graph-toolbar__controls .mode-switch,
+  /* "Hide unconnected" is a power-user toggle and does not earn a row on a
+     390px screen. Search does, so it stays and takes the width it gave up. */
   .graph-toolbar__controls .toggle { display: none; }
 
   .graph-toolbar__controls {
@@ -534,6 +501,19 @@
   .graph-body:has(> .detail-panel.is-closed) { grid-template-rows: 1fr; }
 
   .detail-panel__close { width: 34px; height: 34px; }
+
+  /* There is no hover on a touch screen, so the button has to be legible at
+     rest. Widening the column to 40px is what gets the tap target close to the
+     44px guideline without making the row taller than the artwork in it. */
+  .track-row { grid-template-columns: 36px 1fr auto 40px; }
+  .track-row__play {
+    width: 40px;
+    height: 40px;
+    opacity: 1;
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+  .track-row__play:active { background: var(--accent); color: #05240f; }
 
   .graph-legend { padding: 0.5rem 0.9rem; }
   .graph-legend__summary { display: flex; }

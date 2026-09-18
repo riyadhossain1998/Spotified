@@ -7,10 +7,7 @@
  * the live app runs, which is the point of keeping this file in the source tree
  * rather than hand-writing a separate demo bundle.
  *
- * One file per mode, built by scripts/make_demo_graph.py from the same recovered
- * tracks. The alternative -- porting the genre builder to the browser so the
- * demo could derive it -- would put a second implementation of the bucketing
- * rules in the repo for the sake of saving one 80 KB download.
+ * The payload is built by scripts/make_demo_graph.py from recovered tracks.
  *
  * Playback is the one genuine difference: there is no server to proxy the
  * Spotify call, so onPlayTrack rejects and DetailPanel falls back to its
@@ -18,12 +15,12 @@
  */
 
 import { trackVisit } from "../analytics.js";
-import { formatNumber, nodeNoun, pluralise } from "../format.js";
+import { formatNumber, pluralise } from "../format.js";
 import { ArtistNetworkView } from "../graph/artistNetworkView.js";
-import { applyModeLabels, initGraphChrome } from "../graph/chrome.js";
+import { initGraphChrome } from "../graph/chrome.js";
 import { DetailPanel } from "../graph/detailPanel.js";
 
-export async function initDemoPage({ payloads }) {
+export async function initDemoPage({ payload }) {
   trackVisit();
 
   const canvas = document.getElementById("graph-canvas");
@@ -33,7 +30,6 @@ export async function initDemoPage({ payloads }) {
   const statsEl = document.getElementById("graph-playlist-stats");
   const soloToggle = document.getElementById("toggle-solo");
   const nodeSearch = document.getElementById("node-search");
-  const modeButtons = [...document.querySelectorAll(".mode-switch__btn")];
 
   const panel = new DetailPanel(document.getElementById("detail-panel"), {
     onPlayTrack: () => {
@@ -43,22 +39,13 @@ export async function initDemoPage({ payloads }) {
   });
 
   let view = null;
-  let chrome = null;
-  let mode = "artist";
-  // Switching back and forth is one click, so the second visit to a mode should
-  // not go to the network again. Both payloads are static files.
-  const cache = new Map();
 
-  async function fetchPayload(target) {
-    if (cache.has(target)) return cache.get(target);
-
-    const response = await fetch(payloads[target], { cache: "no-cache" });
+  async function fetchPayload() {
+    const response = await fetch(payload, { cache: "no-cache" });
     if (!response.ok) {
       throw new Error(`Could not load the sample graph (HTTP ${response.status}).`);
     }
-    const graph = await response.json();
-    cache.set(target, graph);
-    return graph;
+    return response.json();
   }
 
   function showError(message) {
@@ -79,7 +66,7 @@ export async function initDemoPage({ payloads }) {
 
     let graph;
     try {
-      graph = await fetchPayload(mode);
+      graph = await fetchPayload();
     } catch (error) {
       showError(error.message);
       return;
@@ -87,30 +74,23 @@ export async function initDemoPage({ payloads }) {
 
     nameEl.textContent = graph.playlist.name;
     statsEl.textContent = [
-      pluralise(graph.stats.artist_count, nodeNoun(graph.mode)),
+      pluralise(graph.stats.artist_count, "artist"),
       pluralise(graph.stats.connection_count, "connection"),
       `${formatNumber(graph.stats.track_count)} tracks`,
       "sample data",
     ].join(" · ");
 
-    applyModeLabels(graph.mode);
     panel.setGraph(graph);
     panel.reset();
 
-    // Torn down together: the chrome's controls close over the view they were
-    // given, and its fullscreen button is a child of the canvas, so leaving it
-    // behind would stack a second one on every switch.
-    chrome?.destroy();
-    view?.destroy();
     view = new ArtistNetworkView(canvas, {
       onSelectNode: (node) => panel.showNode(node),
       onSelectLink: (link) => panel.showLink(link),
       onClearSelection: () => panel.reset(),
     });
     view.render(graph);
-    chrome = initGraphChrome(view);
+    initGraphChrome(view);
 
-    // Controls that survive a switch.
     if (soloToggle?.checked) view.setHideUnconnected(true);
     if (nodeSearch?.value) view.highlightSearch(nodeSearch.value);
 
@@ -132,15 +112,6 @@ export async function initDemoPage({ payloads }) {
     const needle = nodeSearch.value.trim().toLowerCase();
     const match = view.nodes.find((n) => n.label.toLowerCase().includes(needle));
     if (match) view.focusNode(match.id);
-  });
-
-  modeButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      if (button.disabled || button.dataset.mode === mode) return;
-      mode = button.dataset.mode;
-      modeButtons.forEach((b) => b.classList.toggle("is-active", b === button));
-      load();
-    });
   });
 
   document.addEventListener("keydown", (event) => {

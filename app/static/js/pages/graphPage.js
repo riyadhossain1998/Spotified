@@ -2,9 +2,9 @@
 
 import { trackVisit } from "../analytics.js";
 import { fetchGraph, fetchGraphStatus, playTrack } from "../api.js";
-import { formatNumber, nodeNoun, pluralise } from "../format.js";
+import { formatNumber, pluralise } from "../format.js";
 import { ArtistNetworkView } from "../graph/artistNetworkView.js";
-import { applyModeLabels, initGraphChrome } from "../graph/chrome.js";
+import { initGraphChrome } from "../graph/chrome.js";
 import { DetailPanel } from "../graph/detailPanel.js";
 
 export function initGraphPage({ playlistId, defaultMode }) {
@@ -19,9 +19,8 @@ export function initGraphPage({ playlistId, defaultMode }) {
   const soloToggle = document.getElementById("toggle-solo");
   const nodeSearch = document.getElementById("node-search");
   const rebuildBtn = document.getElementById("btn-rebuild");
-  const modeButtons = [...document.querySelectorAll(".mode-switch__btn")];
 
-  let mode = defaultMode;
+  const mode = defaultMode;
   let view = null;
   let chrome = null;
 
@@ -63,7 +62,7 @@ export function initGraphPage({ playlistId, defaultMode }) {
     }
 
     const parts = [
-      pluralise(stats.artist_count, nodeNoun(graph.mode)),
+      pluralise(stats.artist_count, "artist"),
       pluralise(stats.connection_count, "connection"),
       `${formatNumber(stats.track_count)} tracks`,
     ];
@@ -100,7 +99,6 @@ export function initGraphPage({ playlistId, defaultMode }) {
       const { graph, cached, buildSeconds } = await fetchGraph(playlistId, mode, { refresh });
 
       renderHeader(graph, cached, buildSeconds);
-      applyModeLabels(graph.mode);
       panel.setGraph(graph);
       panel.reset();
 
@@ -150,15 +148,6 @@ export function initGraphPage({ playlistId, defaultMode }) {
   });
 
   rebuildBtn.addEventListener("click", () => load({ refresh: true }));
-
-  modeButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      if (button.disabled || button.dataset.mode === mode) return;
-      mode = button.dataset.mode;
-      modeButtons.forEach((b) => b.classList.toggle("is-active", b === button));
-      load();
-    });
-  });
 
   // Escape clears the selection, matching the click-empty-canvas behaviour.
   document.addEventListener("keydown", (event) => {

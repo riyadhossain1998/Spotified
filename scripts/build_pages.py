@@ -34,12 +34,8 @@ JS = [
     "pages/demoPage.js",
 ]
 
-# Must stay in step with the `payloads` map docs/index.html hands to
-# initDemoPage.
-PAYLOADS = {
-    "artist": "demo-graph.json",
-    "genre": "demo-graph-genre.json",
-}
+# Must stay in step with the `payload` docs/index.html hands to initDemoPage.
+DEMO_PAYLOAD = "demo-graph.json"
 
 
 def build(output: Path) -> int:
@@ -47,20 +43,17 @@ def build(output: Path) -> int:
         print(f"Missing {DOCS / 'index.html'}", file=sys.stderr)
         return 1
 
-    # One payload per mode, because the demo has no Spotify token and so cannot
-    # rebuild from tracks the way the live page does. Both are required: the
-    # mode switch fetches the genre file on click, so a missing one is a 404 in
-    # front of a visitor rather than a failure here.
-    for mode in ("artist", "genre"):
-        payload = DOCS / PAYLOADS[mode]
-        if not payload.exists():
-            print(
-                f"Missing {payload}. Generate it first:\n"
-                f"  python scripts/make_demo_graph.py --mode {mode} "
-                f"<legacy.json> docs/{PAYLOADS[mode]}",
-                file=sys.stderr,
-            )
-            return 1
+    # The demo has no Spotify token and so cannot rebuild from tracks the way
+    # the live page does. Checking here turns a missing payload into a build
+    # failure rather than a 404 in front of a visitor.
+    payload = DOCS / DEMO_PAYLOAD
+    if not payload.exists():
+        print(
+            f"Missing {payload}. Generate it first:\n"
+            f"  python scripts/make_demo_graph.py <legacy.json> docs/{DEMO_PAYLOAD}",
+            file=sys.stderr,
+        )
+        return 1
 
     if output.exists():
         shutil.rmtree(output)

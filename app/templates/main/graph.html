@@ -19,21 +19,6 @@
   </div>
 
   <div class="graph-toolbar__controls">
-    {# View switcher, driven by which builders report themselves available. A
-       registered-but-unready mode renders disabled rather than disappearing,
-       so the toolbar does not silently change shape between deploys. #}
-    <div class="mode-switch" role="group" aria-label="Graph mode">
-      {% for m in modes %}
-        <button
-          class="mode-switch__btn {% if m.mode == default_mode %}is-active{% endif %}"
-          data-mode="{{ m.mode }}"
-          title="{{ m.description }}{% if not m.available %} (coming soon){% endif %}"
-          {% if not m.available %}disabled{% endif %}>
-          {{ m.label }}
-        </button>
-      {% endfor %}
-    </div>
-
     <label class="toggle">
       <input type="checkbox" id="toggle-solo">
       <span>Hide unconnected</span>
