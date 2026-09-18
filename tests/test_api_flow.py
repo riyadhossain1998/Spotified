@@ -26,7 +26,7 @@ class FakeSpotify:
 
     def __init__(self, snapshot_id: str = "snap1"):
         self.snapshot_id = snapshot_id
-        self.artist_calls: list[str] = []
+        self.artist_calls: list[list[str]] = []
         self.track_page_calls = 0
         # Matches the signed-in profile below, so the playlist is readable by
         # default. Tests reassign these to model a followed playlist.
@@ -92,18 +92,24 @@ class FakeSpotify:
             "next": None,
         }
 
-    def artist(self, artist_id):
-        # Spotify removed the batch /artists endpoint in 2026-02, so this is a
-        # per-artist lookup. `append` keeps the count correct under the pool.
-        self.artist_calls.append(artist_id)
+    def artists(self, ids):
+        # One call per batch of 50. `append` records the shape of each request,
+        # not just the ids, so a regression back to per-artist lookups fails the
+        # assertion rather than merely slowing the app down.
+        self.artist_calls.append(list(ids))
         return {
-            "id": artist_id,
-            "name": artist_id.upper(),
-            "popularity": 70,
-            "followers": {"total": 1234},
-            "genres": ["hip hop"],
-            "images": [{"url": f"http://img/{artist_id}", "width": 160}],
-            "external_urls": {"spotify": f"http://open/{artist_id}"},
+            "artists": [
+                {
+                    "id": artist_id,
+                    "name": artist_id.upper(),
+                    "popularity": 70,
+                    "followers": {"total": 1234},
+                    "genres": ["hip hop"],
+                    "images": [{"url": f"http://img/{artist_id}", "width": 160}],
+                    "external_urls": {"spotify": f"http://open/{artist_id}"},
+                }
+                for artist_id in ids
+            ]
         }
 
     def current_user_saved_tracks(self, limit=50, offset=0):
@@ -257,8 +263,13 @@ def test_enrichment_fields_present_without_a_second_pass(logged_in, fake_spotify
     assert track["release_year"] == 2021
     assert track["duration_ms"] == 200_000
     assert track["album_art_url"] == "http://img/t1"
-    # One lookup per distinct artist, and no artist resolved twice.
-    assert sorted(fake_spotify.artist_calls) == ["a1", "a2", "a3"]
+    # Every distinct artist in a single batched request, and none resolved twice.
+    # Issuing one request per artist is what exhausted the rate limit and left
+    # every node without an image or a genre, so the request count is the thing
+    # under test here, not just the ids.
+    # Order within a batch comes from upstream set iteration and means nothing.
+    assert len(fake_spotify.artist_calls) == 1
+    assert sorted(fake_spotify.artist_calls[0]) == ["a1", "a2", "a3"]
 
 
 def test_snapshot_change_invalidates_cache(logged_in, fake_spotify):

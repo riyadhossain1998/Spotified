@@ -1,25 +1,34 @@
 /**
  * Artist metadata reads.
  *
- * This used to batch 50 ids into a single /v1/artists call. Spotify removed
- * every batch endpoint in its 2026-02 migration, so one request per artist is
- * now the only way to resolve a name and an image -- the same shape as the
- * original project, which is why the two mitigations below exist:
+ * One `/v1/artists?ids=` call carries 50 ids, which keeps a 100-artist playlist
+ * to two round trips.
  *
- *   - a small pool of concurrent requests, rather than a sequential loop, so a
- *     100-artist playlist is a few seconds instead of a minute;
- *   - a session-lifetime cache, because artists recur heavily across playlists
- *     and their metadata does not change within a sitting.
+ * An earlier version issued one request per artist, on the belief that the
+ * 2026-02 migration had withdrawn the batch endpoints along with
+ * `/playlists/{id}/tracks`. It had not, and the cost of that mistake was the
+ * whole feature: ~60 requests per graph exhausted the app's rate limit, Spotify
+ * answered with a `Retry-After` longer than client.js is willing to wait, and
+ * so *every* lookup failed rather than a few. Unresolved artists fall back to
+ * their track credit -- no image, no genres -- so nodes rendered as placeholder
+ * "?" circles and the genre graph collapsed to a single `unclassified` node.
+ * Batching is therefore a correctness fix, not an optimisation.
+ *
+ * A session-lifetime cache sits in front of all of it, because artists recur
+ * heavily across playlists and their metadata does not change within a sitting.
  */
 
 import { apiGet } from "./client.js";
 
+/** Spotify's documented ceiling for /v1/artists. */
+const MAX_IDS_PER_REQUEST = 50;
+
 /**
- * Enough to hide per-request latency, low enough not to trip rate limiting.
- * The client retries a 429, but a burst that earns one has already cost more
- * time than the parallelism saved.
+ * Batches in flight at once. Two cover most playlists, so this only bites on
+ * large ones -- and past a handful of concurrent batches the rate limit is back
+ * in play, which is the failure this file exists to avoid.
  */
-const CONCURRENCY = 6;
+const CONCURRENCY = 3;
 
 const CACHE_KEY = "spotified.artists";
 
@@ -82,12 +91,12 @@ function writeCache(cache) {
 }
 
 /**
- * Resolve metadata for every id, one request each, `CONCURRENCY` at a time.
+ * Resolve metadata for every id, 50 per request, `CONCURRENCY` batches at a time.
  *
- * A single failed artist degrades gracefully: it falls back to the name on its
- * track credit rather than sinking the whole build. The count is logged because
- * the previous silent version hid an entire endpoint being withdrawn -- every
- * lookup failed, every node lost its image, and nothing said so.
+ * An artist that cannot be resolved degrades gracefully: it falls back to the
+ * name on its track credit rather than sinking the whole build. The shortfall is
+ * logged because the silent version of this hid an entire feature failing --
+ * every lookup failed, every node lost its image, and nothing said so.
  */
 export async function fetchArtists(artistIds, { onProgress } = {}) {
   const unique = [...new Set(artistIds.filter(Boolean))];
@@ -101,30 +110,42 @@ export async function fetchArtists(artistIds, { onProgress } = {}) {
     else pending.push(id);
   }
 
+  const batches = [];
+  for (let i = 0; i < pending.length; i += MAX_IDS_PER_REQUEST) {
+    batches.push(pending.slice(i, i + MAX_IDS_PER_REQUEST));
+  }
+
   let done = unique.length - pending.length;
-  let failed = 0;
   let cursor = 0;
   onProgress?.(done, unique.length);
 
   async function worker() {
-    while (cursor < pending.length) {
-      const id = pending[cursor++];
+    while (cursor < batches.length) {
+      const batch = batches[cursor++];
       try {
-        const artist = toArtist(await apiGet(`/artists/${encodeURIComponent(id)}`));
-        resolved.set(id, artist);
-        cache.set(id, artist);
+        const payload = await apiGet("/artists", { ids: batch.join(",") });
+        // Spotify answers positionally and writes null where an id resolved to
+        // nothing, so one bad id costs that artist rather than the batch.
+        for (const entry of payload.artists || []) {
+          if (!entry?.id) continue;
+          const artist = toArtist(entry);
+          resolved.set(artist.id, artist);
+          cache.set(artist.id, artist);
+        }
       } catch (error) {
         if (error.needsLogin) throw error; // a dead session will not fix itself
-        failed += 1;
+        // Anything else leaves this batch unresolved and is counted below.
       }
-      onProgress?.(++done, unique.length);
+      done += batch.length;
+      onProgress?.(done, unique.length);
     }
   }
 
   await Promise.all(
-    Array.from({ length: Math.min(CONCURRENCY, pending.length) }, worker)
+    Array.from({ length: Math.min(CONCURRENCY, batches.length) }, worker)
   );
 
+  const failed = unique.length - resolved.size;
   if (failed) console.warn(`${failed} of ${unique.length} artist lookups failed.`);
   writeCache(cache);
   return resolved;

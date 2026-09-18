@@ -1,10 +1,15 @@
 """Artist metadata reads.
 
-This batched 50 ids into one `/v1/artists` call until Spotify removed every
-batch endpoint in its 2026-02 migration. One request per artist is now the only
-option, so the round trips run in a small thread pool instead of a sequential
-loop -- that is the difference between a few seconds and the minutes gen 1 spent
-here.
+One `/v1/artists` call carries 50 ids, so a 100-artist playlist is two round
+trips.
+
+This was briefly rewritten to one request per artist, on the belief that the
+2026-02 migration had withdrawn the batch endpoints along with
+`/playlists/{id}/tracks`. It had not, and ~60 requests per graph is enough to
+exhaust an app's rate limit -- at which point Spotify returns a long
+`Retry-After` and every lookup fails, not merely some. Batching is a
+correctness fix, not an optimisation. See docs/js/spotify/artists.js, which had
+the same regression and the visible symptoms.
 
 The disk cache in `app/storage/` is what keeps this off the hot path entirely: a
 playlist is only resolved again when its snapshot_id changes.
@@ -22,9 +27,13 @@ from app.graph.models import Artist
 
 logger = logging.getLogger(__name__)
 
-# Enough to hide per-request latency without burst-tripping Spotify's rate
-# limiter, which would cost more time in backoff than the parallelism saves.
-MAX_WORKERS = 6
+# Spotify's documented ceiling for /v1/artists.
+MAX_IDS_PER_REQUEST = 50
+
+# Batches in flight at once. Two cover most playlists, so this only bites on
+# large ones -- and past a handful of concurrent batches the rate limit is back
+# in play, which is the failure this module exists to avoid.
+MAX_WORKERS = 3
 
 # Shown when an artist has no image on Spotify, so nodes never render broken.
 PLACEHOLDER_IMAGE = (
@@ -60,9 +69,9 @@ def _to_artist(payload: dict[str, Any]) -> Artist:
 def fetch_artists(
     client: spotipy.Spotify, artist_ids: Sequence[str]
 ) -> dict[str, Artist]:
-    """Return {artist_id: Artist} for every id, one request each.
+    """Return {artist_id: Artist} for every id, 50 ids per request.
 
-    A failed artist degrades gracefully: it is logged and skipped, and the
+    An unresolved artist degrades gracefully: it is logged and skipped, and the
     builder falls back to the name on that artist's track credit, so one bad
     id cannot sink an entire graph build.
     """
@@ -70,17 +79,25 @@ def fetch_artists(
     if not unique_ids:
         return {}
 
-    def fetch_one(artist_id: str) -> Artist | None:
+    batches = [
+        unique_ids[i : i + MAX_IDS_PER_REQUEST]
+        for i in range(0, len(unique_ids), MAX_IDS_PER_REQUEST)
+    ]
+
+    def fetch_batch(ids: list[str]) -> list[Artist]:
         try:
-            return _to_artist(client.artist(artist_id))
+            payload = client.artists(ids) or {}
         except spotipy.SpotifyException as exc:
-            logger.warning("Artist lookup failed (%s): %s", artist_id, exc)
-            return None
+            logger.warning("Artist batch of %s failed: %s", len(ids), exc)
+            return []
+        # Spotify answers positionally and writes null where an id resolved to
+        # nothing, so one bad id costs that artist rather than the batch.
+        return [_to_artist(p) for p in (payload.get("artists") or []) if p and p.get("id")]
 
-    with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(unique_ids))) as pool:
-        artists = pool.map(fetch_one, unique_ids)
+    with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(batches))) as pool:
+        results = pool.map(fetch_batch, batches)
 
-    resolved = {a.id: a for a in artists if a is not None}
+    resolved = {a.id: a for batch in results for a in batch}
 
     missing = len(unique_ids) - len(resolved)
     if missing:
