@@ -1,24 +1,28 @@
 /**
  * Artist metadata reads.
  *
- * One `/v1/artists?ids=` call carries 50 ids, which keeps a 100-artist playlist
- * to two round trips.
+ * These go to our own Worker rather than straight to Spotify, because
+ * `GET /v1/artists` refuses this app's PKCE user token with a 403 -- measured
+ * for a single id as well as for fifty, so neither batch size nor the rate limit
+ * explains it -- while the identical ids return 200 with images for a
+ * client-credentials token. Client credentials needs a client secret, a secret
+ * cannot ship to a browser, and so the lookup happens server-side. The Worker
+ * answers in Spotify's own shape, so everything below is unchanged by the move.
  *
- * An earlier version issued one request per artist, on the belief that the
- * 2026-02 migration had withdrawn the batch endpoints along with
- * `/playlists/{id}/tracks`. It had not, and the cost of that mistake was the
- * whole feature: ~60 requests per graph exhausted the app's rate limit, Spotify
- * answered with a `Retry-After` longer than client.js is willing to wait, and
- * so *every* lookup failed rather than a few. Unresolved artists fall back to
- * their track credit, which carries a name and nothing else, so every node in
- * the graph rendered as a placeholder "?" circle. Batching is therefore a
- * correctness fix, not an optimisation.
+ * One call still carries 50 ids, which keeps a 100-artist playlist to two round
+ * trips. That matters more than it looks: an earlier version issued one request
+ * per artist, and ~60 requests per graph exhausted the app's rate limit, so
+ * *every* lookup failed rather than a few. An unresolved artist falls back to
+ * its track credit, which has a name and no picture, and the whole graph
+ * rendered as placeholder "?" circles. Batching is a correctness fix, not an
+ * optimisation.
  *
  * A session-lifetime cache sits in front of all of it, because artists recur
  * heavily across playlists and their metadata does not change within a sitting.
+ * The Worker caches for a day on top of that, so a reload costs Spotify nothing.
  */
 
-import { apiGet } from "./client.js";
+import { ARTIST_ENDPOINT } from "../config.js";
 
 /** Spotify's documented ceiling for /v1/artists. */
 const MAX_IDS_PER_REQUEST = 50;
@@ -51,6 +55,29 @@ function mediumImage(images) {
       ? image
       : best
   ).url;
+}
+
+/**
+ * One batch, via the Worker.
+ *
+ * No Authorization header: the Worker holds the credential, and the user's token
+ * is exactly what Spotify was refusing. Errors carry the status so the caller can
+ * name it in the log rather than reporting a silent shortfall.
+ */
+async function fetchBatch(ids) {
+  const url = new URL(ARTIST_ENDPOINT);
+  url.searchParams.set("ids", ids.join(","));
+
+  const response = await fetch(url.href);
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const error = new Error(
+      body?.error || `Artist lookup failed (HTTP ${response.status}).`
+    );
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
 }
 
 function toArtist(payload) {
@@ -123,7 +150,7 @@ export async function fetchArtists(artistIds, { onProgress } = {}) {
     while (cursor < batches.length) {
       const batch = batches[cursor++];
       try {
-        const payload = await apiGet("/artists", { ids: batch.join(",") });
+        const payload = await fetchBatch(batch);
         // Spotify answers positionally and writes null where an id resolved to
         // nothing, so one bad id costs that artist rather than the batch.
         for (const entry of payload.artists || []) {

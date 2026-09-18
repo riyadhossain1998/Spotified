@@ -46,5 +46,18 @@ export const AUTHORIZE_ENDPOINT = "https://accounts.spotify.com/authorize";
 export const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
 export const API_BASE = "https://api.spotify.com/v1";
 
+/**
+ * Artist metadata comes from our own Worker, not from api.spotify.com.
+ *
+ * `GET /v1/artists` answers 403 for a PKCE user token -- for one id as readily
+ * as for fifty, so it is not batch size and not the rate limit -- while the same
+ * ids return 200 with images for a client-credentials token. That grant needs a
+ * client secret, and a secret cannot ship to a browser, so the call is made
+ * server-side instead. No token is attached from here; there is still no secret
+ * in this build. See analytics/README.md.
+ */
+export const ARTIST_ENDPOINT =
+  "https://spotified-analytics.riyad-hossain114.workers.dev/artists";
+
 /** Safety ceiling on how many tracks we pull from a single playlist. */
 export const MAX_PLAYLIST_TRACKS = 2000;

@@ -1,7 +1,35 @@
-# Analytics
+# Worker
 
-A single Cloudflare Worker writing to a D1 (SQLite) database. It records four
-things and nothing else:
+One Cloudflare Worker serving two routes, both of which exist because GitHub
+Pages has no server of its own:
+
+| route | purpose |
+| --- | --- |
+| `POST /` | record an event (below) |
+| `GET /artists?ids=` | resolve artist names, pictures and genres |
+
+## Why the artist route exists
+
+`GET /v1/artists` returns **403** for the browser app's PKCE *user* token — for a
+single id as readily as for fifty, so it is neither batch size nor the rate limit
+— while the identical ids return **200 with images** for a *client-credentials*
+token. Client credentials needs a client secret, a secret cannot ship to a
+browser, so the lookup has to happen somewhere with a server.
+
+Without this, every artist lookup failed, each artist fell back to the bare name
+on its track credit, and every node in the graph rendered as a placeholder `?`.
+
+The route answers in Spotify's own JSON shape, so the browser parses one format
+whatever served it. It takes 1–50 ids, rejects anything that is not a 22-character
+Spotify id, and caches for a day — keyed on the *sorted* id list, so two playlists
+sharing artists share one cache entry and a reload costs Spotify nothing.
+
+Reads are also allowed from `http://127.0.0.1:<port>` so the graph has pictures
+during local development. Writes stay locked to the published origin.
+
+## Analytics
+
+It records four things and nothing else:
 
 | kind | recorded when | `name` |
 | --- | --- | --- |
@@ -64,7 +92,22 @@ Otherwise, to push a change to `worker.js`:
 ```bash
 TOKEN=$(security find-generic-password -s "cloudflare-api-token" -w)
 ACCOUNT=ade8e1a50d8bd4ea70b72c5d0e9f8e58
-METADATA='{"main_module":"worker.js","compatibility_date":"2026-09-01","bindings":[{"type":"d1","name":"DB","id":"91fdb76d-21d6-4121-b626-f629a1209a0c"}]}'
+CID=$(security find-generic-password -s "spotify-client-id" -w)
+SECRET=$(security find-generic-password -s "spotify-client-secret" -w)
+
+METADATA=$(python3 - <<PY
+import json, os
+print(json.dumps({
+    "main_module": "worker.js",
+    "compatibility_date": "2026-09-01",
+    "bindings": [
+        {"type": "d1", "name": "DB", "id": "91fdb76d-21d6-4121-b626-f629a1209a0c"},
+        {"type": "secret_text", "name": "SPOTIFY_CLIENT_ID", "text": os.environ["CID"]},
+        {"type": "secret_text", "name": "SPOTIFY_CLIENT_SECRET", "text": os.environ["SECRET"]},
+    ],
+}))
+PY
+)
 
 curl -X PUT -H "Authorization: Bearer $TOKEN" \
   -F "metadata=$METADATA;type=application/json" \
@@ -72,5 +115,21 @@ curl -X PUT -H "Authorization: Bearer $TOKEN" \
   "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/workers/scripts/spotified-analytics"
 ```
 
-The token needs only `D1:Edit` and `Workers Scripts:Edit`, scoped to the
-account. `query.sh` explains how to put one in the keychain.
+**The secret bindings must be included on every upload.** This API call replaces
+the script *and* its bindings, so a deploy that omits them leaves the Worker
+running without credentials, and `/artists` answers 500 until the next full
+deploy. (It says so in the response body rather than failing silently.)
+
+The Cloudflare token needs only `D1:Edit` and `Workers Scripts:Edit`, scoped to
+the account. `query.sh` explains how to put one in the keychain. The two Spotify
+values go in the same place:
+
+```bash
+security add-generic-password -U -s "spotify-client-id" -a "$USER" -w
+security add-generic-password -U -s "spotify-client-secret" -a "$USER" -w
+```
+
+These are the credentials of the older, non-PKCE Spotify app — the configuration
+measured to return 200 on `/v1/artists`. They currently also sit in plaintext in a
+comment in `EtherialNetwork/spotipy_connection.py` in the legacy project, so the
+secret is worth rotating in the Spotify dashboard and re-uploading here.
