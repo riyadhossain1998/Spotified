@@ -19,12 +19,15 @@ from app.graph.models import ArtistRef, PlaylistRef, Track
 logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 50            # Spotify's max for playlist listings
-TRACK_PAGE_SIZE = 100     # Spotify's max for playlist items
+TRACK_PAGE_SIZE = 50      # Spotify's max for playlist items (was 100 before 2026-02)
 
+# `item(...)`, not `track(...)`: Spotify's 2026-02 API migration renamed the
+# per-entry payload. `track` still resolves but is deprecated, and an
+# unrecognised mask is answered with an empty object rather than an error.
 TRACK_FIELDS = (
     "next,items("
     "added_at,"
-    "track("
+    "item("
     "id,name,popularity,duration_ms,explicit,preview_url,"
     "external_urls(spotify),"
     "artists(id,name),"
@@ -50,7 +53,9 @@ def to_playlist_ref(payload: dict[str, Any]) -> PlaylistRef:
         id=payload["id"],
         name=payload.get("name") or "Untitled playlist",
         snapshot_id=payload.get("snapshot_id", ""),
-        track_count=(payload.get("tracks") or {}).get("total", 0),
+        # `current_user_playlists` still sends the deprecated `tracks` beside
+        # the current `items`, so read the new name first and fall back.
+        track_count=(payload.get("items") or payload.get("tracks") or {}).get("total", 0),
         owner_name=(payload.get("owner") or {}).get("display_name"),
         description=payload.get("description") or None,
         image_url=_first_image(payload.get("images")),
@@ -86,9 +91,29 @@ def get_playlist_ref(client: spotipy.Spotify, playlist_id: str) -> PlaylistRef:
     payload = client.playlist(
         playlist_id,
         fields="id,name,snapshot_id,description,public,collaborative,"
-        "images,external_urls(spotify),owner(display_name),tracks(total)",
+        "images,external_urls(spotify),owner(display_name),items(total)",
     )
     return to_playlist_ref(payload)
+
+
+def _get_playlist_items(
+    client: spotipy.Spotify, playlist_id: str, *, limit: int, offset: int
+) -> dict[str, Any]:
+    """One page of a playlist's items.
+
+    Not `client.playlist_items()`: spotipy pins the path to
+    `playlists/{id}/tracks`, which Spotify removed in its 2026-02 migration and
+    now answers with 403 Forbidden for every caller -- including the playlist's
+    own owner. Until spotipy ships the new path, go through its request plumbing
+    directly so retries, auth refresh and error translation still apply.
+    """
+    return client._get(
+        f"playlists/{client._get_id('playlist', playlist_id)}/items",
+        limit=limit,
+        offset=offset,
+        fields=TRACK_FIELDS,
+        additional_types="track",
+    )
 
 
 def _to_track(item: dict[str, Any]) -> Track | None:
@@ -97,7 +122,7 @@ def _to_track(item: dict[str, Any]) -> Track | None:
     Items get skipped when they are local files, podcast episodes, or tracks
     removed from the catalogue -- all of which arrive with a null id.
     """
-    raw = item.get("track")
+    raw = item.get("item") or item.get("track")
     if not raw or not raw.get("id"):
         return None
 
@@ -138,12 +163,8 @@ def iter_playlist_tracks(
     offset = 0
     yielded = 0
     while True:
-        page = client.playlist_items(
-            playlist_id,
-            limit=TRACK_PAGE_SIZE,
-            offset=offset,
-            fields=TRACK_FIELDS,
-            additional_types=("track",),
+        page = _get_playlist_items(
+            client, playlist_id, limit=TRACK_PAGE_SIZE, offset=offset
         )
         items = page.get("items") or []
         if not items:

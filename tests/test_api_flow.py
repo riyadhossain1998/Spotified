@@ -42,10 +42,16 @@ class FakeSpotify:
             "images": [{"url": "http://img/pl", "width": 640}],
             "external_urls": {"spotify": "http://open/pl"},
             "owner": {"display_name": "Test User"},
-            "tracks": {"total": 3},
+            "items": {"total": 3},
         }
 
-    def playlist_items(self, playlist_id, limit=100, offset=0, fields=None, additional_types=None):
+    def _get_id(self, type_, id_):
+        return id_
+
+    def _get(self, path, limit=50, offset=0, fields=None, additional_types=None):
+        # The 2026 API serves playlist contents from /items; /tracks is gone and
+        # answers 403, so a fake that still accepted it would hide a real break.
+        assert path == f"playlists/{PLAYLIST_ID}/items", path
         self.track_page_calls += 1
         if offset > 0:
             return {"items": [], "next": None}
@@ -53,7 +59,7 @@ class FakeSpotify:
         def item(track_id, artists, popularity):
             return {
                 "added_at": "2024-01-01T00:00:00Z",
-                "track": {
+                "item": {
                     "id": track_id,
                     "name": f"Song {track_id}",
                     "popularity": popularity,
@@ -75,8 +81,8 @@ class FakeSpotify:
                 item("t1", ["a1", "a2"], 80),
                 item("t2", ["a1", "a3"], 60),
                 item("t3", ["a1"], 40),
-                {"track": None},                     # local file -> skipped
-                {"track": {"id": None, "name": "x"}},  # unavailable -> skipped
+                {"item": None},                      # local file -> skipped
+                {"item": {"id": None, "name": "x"}},  # unavailable -> skipped
             ],
             "next": None,
         }

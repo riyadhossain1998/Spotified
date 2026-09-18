@@ -272,7 +272,7 @@ sequenceDiagram
     S->>SP: playlist(id, fields="snapshot_id,name,…")
     S->>C: get(mode, id, snapshot_id)
     C-->>S: None (miss)
-    S->>SP: playlist_items(...) paged
+    S->>SP: playlists/<id>/items paged
     S->>SP: artists(ids) batched 50
     S->>S: ArtistNetworkBuilder.build(...)
     S->>C: put(mode, id, snapshot_id, payload)
