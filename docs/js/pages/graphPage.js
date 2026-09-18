@@ -12,11 +12,12 @@
 // ../../static/ is populated by scripts/build_pages.py from app/static/, so the
 // renderer and formatters here are literally the app's own files, not copies.
 import { trackVisit } from "../../static/js/analytics.js";
-import { formatNumber, pluralise } from "../../static/js/format.js";
+import { formatNumber, nodeNoun, pluralise } from "../../static/js/format.js";
 import { ArtistNetworkView } from "../../static/js/graph/artistNetworkView.js";
-import { initGraphChrome } from "../../static/js/graph/chrome.js";
+import { applyModeLabels, initGraphChrome } from "../../static/js/graph/chrome.js";
 import { DetailPanel } from "../../static/js/graph/detailPanel.js";
 import { buildArtistNetwork } from "../graph/artistNetwork.js";
+import { buildGenreNetwork } from "../graph/genreNetwork.js";
 import { currentUser } from "../auth/session.js";
 import { fetchArtists } from "../spotify/artists.js";
 import {
@@ -44,6 +45,7 @@ export async function initGraphPage() {
   const artEl = document.getElementById("graph-playlist-art");
   const soloToggle = document.getElementById("toggle-solo");
   const nodeSearch = document.getElementById("node-search");
+  const modeButtons = [...document.querySelectorAll(".mode-switch__btn")];
 
   const panel = new DetailPanel(document.getElementById("detail-panel"), {
     onPlayTrack: () => {
@@ -52,7 +54,14 @@ export async function initGraphPage() {
     onClose: () => view?.clearSelection(),
   });
 
+  const BUILDERS = { artist: buildArtistNetwork, genre: buildGenreNetwork };
+
   let view = null;
+  let chrome = null;
+  let mode = "artist";
+  // Kept so a mode switch is a rebuild, not another round of Spotify requests:
+  // both builders read the same tracks and the same artist metadata.
+  let source = null;
 
   function showError(error) {
     const message = typeof error === "string" ? error : error.message;
@@ -83,6 +92,40 @@ export async function initGraphPage() {
         loginAgainButton(window.location.pathname + window.location.search)
       );
     }
+  }
+
+  /** Rebuild and re-render from data already in hand. */
+  function renderMode() {
+    const graph = BUILDERS[mode](source.playlist, source.tracks, source.metadata);
+
+    const parts = [
+      pluralise(graph.stats.artist_count, nodeNoun(graph.mode)),
+      pluralise(graph.stats.connection_count, "connection"),
+      `${formatNumber(graph.stats.track_count)} tracks`,
+    ];
+    if (mode === "artist") {
+      parts.push(`${formatNumber(graph.stats.collaboration_track_count)} collabs`);
+    }
+    statsEl.textContent = parts.join(" · ");
+
+    applyModeLabels(graph.mode);
+    panel.setGraph(graph);
+    panel.reset();
+
+    // Torn down together: the chrome's controls close over the view they were
+    // given, and its button is a child of the canvas, so leaving it behind
+    // would stack a second one on every switch.
+    chrome?.destroy();
+    view?.destroy();
+    view = new ArtistNetworkView(canvas, {
+      onSelectNode: (node) => panel.showNode(node),
+      onSelectLink: (link) => panel.showLink(link),
+      onClearSelection: () => panel.reset(),
+    });
+    view.render(graph);
+    view.setHideUnconnected(soloToggle.checked);
+    if (nodeSearch.value) view.highlightSearch(nodeSearch.value);
+    chrome = initGraphChrome(view);
   }
 
   if (!playlistId) {
@@ -138,26 +181,8 @@ export async function initGraphPage() {
     });
 
     loaderText.textContent = "Building the network…";
-    const graph = buildArtistNetwork(playlist, tracks, metadata);
-
-    statsEl.textContent = [
-      pluralise(graph.stats.artist_count, "artist"),
-      pluralise(graph.stats.connection_count, "connection"),
-      `${formatNumber(graph.stats.track_count)} tracks`,
-      `${formatNumber(graph.stats.collaboration_track_count)} collabs`,
-    ].join(" · ");
-
-    panel.setGraph(graph);
-    panel.reset();
-
-    view = new ArtistNetworkView(canvas, {
-      onSelectNode: (node) => panel.showNode(node),
-      onSelectLink: (link) => panel.showLink(link),
-      onClearSelection: () => panel.reset(),
-    });
-    view.render(graph);
-    view.setHideUnconnected(soloToggle.checked);
-    initGraphChrome(view);
+    source = { playlist, tracks, metadata };
+    renderMode();
 
     loader.hidden = true;
   } catch (error) {
@@ -166,24 +191,34 @@ export async function initGraphPage() {
   }
 
   soloToggle.addEventListener("change", () => {
-    view.setHideUnconnected(soloToggle.checked);
+    view?.setHideUnconnected(soloToggle.checked);
   });
 
   let searchTimer;
   nodeSearch.addEventListener("input", () => {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => view.highlightSearch(nodeSearch.value), 150);
+    searchTimer = setTimeout(() => view?.highlightSearch(nodeSearch.value), 150);
   });
 
   // Enter jumps to the first match rather than only highlighting it.
   nodeSearch.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
+    if (event.key !== "Enter" || !view) return;
     const needle = nodeSearch.value.trim().toLowerCase();
     const match = view.nodes.find((n) => n.label.toLowerCase().includes(needle));
     if (match) view.focusNode(match.id);
   });
 
+  // No refetch: both builders read the tracks and metadata already fetched.
+  modeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.disabled || !source || button.dataset.mode === mode) return;
+      mode = button.dataset.mode;
+      modeButtons.forEach((b) => b.classList.toggle("is-active", b === button));
+      renderMode();
+    });
+  });
+
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") view.clearSelection();
+    if (event.key === "Escape") view?.clearSelection();
   });
 }

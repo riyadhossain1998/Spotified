@@ -32,6 +32,9 @@ def summarise(graph: "Graph") -> dict[str, Any]:
 
     stats: dict[str, Any] = {
         "track_count": int(len(tracks_df)),
+        # A node count under an older name. Every field here counts nodes and
+        # edges without caring what they stand for, which is what lets genre
+        # mode reuse the summariser unchanged; the front end supplies the noun.
         "artist_count": int(len(nodes_df)),
         "connection_count": int(len(links_df)),
         "collaboration_track_count": 0,

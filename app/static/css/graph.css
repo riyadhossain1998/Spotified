@@ -175,7 +175,12 @@
 .link.is-dimmed { stroke-opacity: 0.06; }
 
 .node { cursor: pointer; }
-.node image { clip-path: circle(50%); }
+
+/* The group, not the images inside it. A genre node is tiled from two to four
+   faces that have to be clipped as one circle; clipping each image separately
+   would draw four small circles instead. The reference box is the group's
+   bounding box, which the tiles fill exactly. */
+.node__mosaic { clip-path: circle(50%); }
 
 .node__ring {
   fill: none;
@@ -296,12 +301,61 @@
   color: var(--text-muted);
 }
 
+/* A count, not a label: the dashed edge stops "+30" from reading as a genre
+   actually named "+30" sitting alongside the real ones. */
+.genre-chip--more {
+  background: none;
+  border-style: dashed;
+}
+
 .detail-section__title {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
   margin: 0 0 0.6rem;
+}
+
+/* The artists behind a genre node. Denser than a track row on purpose: this
+   is context for the songs below it, not the thing being read. */
+.member-list {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.member {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.25rem 0.45rem;
+  font-size: 0.82rem;
+}
+
+.member__face {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-hover);
+}
+
+.member__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member__count { color: var(--text-muted); font-size: 0.75rem; }
+
+.member-list__more {
+  margin: -1rem 0 1.25rem;
+  padding-left: 0.45rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 .track-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }

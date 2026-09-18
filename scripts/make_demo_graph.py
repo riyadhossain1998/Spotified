@@ -8,6 +8,12 @@ output is therefore guaranteed to be the same shape the live API returns.
 
     python scripts/make_demo_graph.py ../weeknd.json docs/demo-graph.json \
         --name "The Weeknd — Collaborations"
+    python scripts/make_demo_graph.py ../weeknd.json docs/demo-graph-genre.json \
+        --name "The Weeknd — Collaborations" --mode genre
+
+The demo ships one file per mode rather than building the genre view in the
+browser. Both come from the same recovered tracks, so switching modes on the
+static site shows the same playlist two ways, exactly as the live app does.
 
 Two things are deliberately dropped:
 
@@ -30,7 +36,10 @@ from typing import Sequence
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.graph.builders.artist_network import ArtistNetworkBuilder
+from app.graph.builders.genre_network import GenreNetworkBuilder
 from app.graph.models import Artist, ArtistRef, PlaylistRef, Track
+
+BUILDERS = {"artist": ArtistNetworkBuilder, "genre": GenreNetworkBuilder}
 
 
 class DictResolver:
@@ -107,6 +116,9 @@ def main() -> int:
     parser.add_argument("destination", type=Path, help="where to write the payload")
     parser.add_argument("--name", default="Demo Playlist", help="playlist display name")
     parser.add_argument(
+        "--mode", choices=sorted(BUILDERS), default="artist", help="which graph to build"
+    )
+    parser.add_argument(
         "--limit-artists",
         type=int,
         default=0,
@@ -144,7 +156,7 @@ def main() -> int:
         description="Static sample payload — the live app builds this from your own account.",
     )
 
-    graph = ArtistNetworkBuilder().build(playlist, tracks, DictResolver(artists))
+    graph = BUILDERS[args.mode]().build(playlist, tracks, DictResolver(artists))
     payload = graph.to_dict()
 
     serialised = json.dumps(payload, separators=(",", ":"))

@@ -19,7 +19,9 @@
   </div>
 
   <div class="graph-toolbar__controls">
-    {# View switcher. Genre mode renders disabled until its builder is enabled. #}
+    {# View switcher, driven by which builders report themselves available. A
+       registered-but-unready mode renders disabled rather than disappearing,
+       so the toolbar does not silently change shape between deploys. #}
     <div class="mode-switch" role="group" aria-label="Graph mode">
       {% for m in modes %}
         <button
@@ -75,7 +77,7 @@
 <details id="graph-legend" class="graph-legend" open>
   <summary class="graph-legend__summary">How to read this graph</summary>
   <div class="graph-legend__items">
-    <span><i class="legend-dot legend-dot--primary"></i> Main artist</span>
+    <span><i class="legend-dot legend-dot--primary"></i> <span id="legend-primary">Main artist</span></span>
     <span><i class="legend-dot"></i> Node size = songs on playlist</span>
     <span><i class="legend-line"></i> Line thickness = shared songs</span>
     <span class="graph-legend__hint">Scroll to zoom · drag to pan · drag a node to pin</span>

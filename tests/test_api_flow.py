@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app import create_app
 from app.auth.session import PROFILE_KEY, TOKEN_KEY
+from app.graph.builders.genre_network import GenreNetworkBuilder
 
 PLAYLIST_ID = "pl_test"
 
@@ -181,8 +182,9 @@ def test_graph_page_renders_with_mode_switcher(logged_in):
     response = logged_in.get(f"/playlists/{PLAYLIST_ID}/graph")
     assert response.status_code == 200
     assert b'data-mode="artist"' in response.data
-    # Genre mode is present but disabled until its builder is enabled.
     assert b'data-mode="genre"' in response.data
+    # Both builders are available, so neither button renders disabled.
+    assert b"disabled" not in response.data
 
 
 def test_healthz(client):
@@ -202,7 +204,7 @@ def test_modes_endpoint_reports_availability(client):
     modes = {m["mode"]: m["available"] for m in payload["modes"]}
 
     assert payload["default"] == "artist"
-    assert modes == {"artist": True, "genre": False}
+    assert modes == {"artist": True, "genre": True}
 
 
 def test_graph_build_then_cache_hit(logged_in, fake_spotify):
@@ -295,10 +297,32 @@ def test_invalidate_endpoint_clears_cache(logged_in):
     assert status["cached"] is False
 
 
-def test_unavailable_mode_is_rejected(logged_in):
+def test_unavailable_mode_is_rejected(logged_in, monkeypatch):
+    """A registered but switched-off mode answers 409, not 400 or a graph.
+
+    Both shipped modes are available now, so this stands a builder down to
+    exercise the path. It stays covered because the next mode to be added
+    lands here first, and a 400 would tell the front end the mode does not
+    exist rather than that it is not ready.
+    """
+    monkeypatch.setattr(GenreNetworkBuilder, "available", False)
+
     response = logged_in.get(f"/api/playlists/{PLAYLIST_ID}/graph?mode=genre")
     assert response.status_code == 409
     assert response.get_json()["error"] == "mode_unavailable"
+
+
+def test_genre_mode_builds_a_graph(logged_in):
+    """Every artist in the fixture is "hip hop", so they collapse to one node."""
+    response = logged_in.get(f"/api/playlists/{PLAYLIST_ID}/graph?mode=genre")
+    assert response.status_code == 200
+
+    graph = response.get_json()
+    assert graph["mode"] == "genre"
+    assert [n["id"] for n in graph["nodes"]] == ["hip hop"]
+    assert sorted(graph["nodes"][0]["track_ids"]) == ["t1", "t2", "t3"]
+    # The mosaic needs faces; without members the node renders as a blank circle.
+    assert [m["id"] for m in graph["nodes"][0]["members"]] == ["a1", "a2", "a3"]
 
 
 def test_unknown_mode_is_rejected(logged_in):

@@ -23,6 +23,16 @@ export function pluralise(count, singular, plural = `${singular}s`) {
   return `${formatNumber(count)} ${count === 1 ? singular : plural}`;
 }
 
+/**
+ * What one node stands for in a given mode.
+ *
+ * `stats.artist_count` is really a node count -- the summariser is deliberately
+ * mode-agnostic -- so the label has to come from the mode rather than the key.
+ */
+export function nodeNoun(mode) {
+  return mode === "genre" ? "genre" : "artist";
+}
+
 /** Spotify release dates arrive as YYYY, YYYY-MM or YYYY-MM-DD. */
 export function formatYear(releaseDate) {
   return releaseDate ? releaseDate.slice(0, 4) : "—";

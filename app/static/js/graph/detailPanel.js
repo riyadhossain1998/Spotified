@@ -7,10 +7,24 @@
  *
  * Both are pure lookups because `graph.tracks` is an id-keyed dict and nodes
  * and links carry `track_ids`. No scanning, no cross-referencing.
+ *
+ * Genre mode reuses all of it. A genre node is the same shape as an artist
+ * node -- a label and a list of track ids -- so only the wording around it
+ * changes, plus a roster of the artists the node stands for.
  */
 
 import { trackArtistClick, trackSongClick, trackSpotifyOpen } from "../analytics.js";
 import { formatCompact, formatDuration, formatYear, pluralise } from "../format.js";
+
+/**
+ * How many artists a genre node lists before it stops. The rest are counted,
+ * not named: the songs are what the panel is for, and a bucket with forty
+ * artists in it would push them below two screenfuls of roster.
+ */
+const MEMBERS_SHOWN = 8;
+
+/** How many raw Spotify labels a node names before the rest become a count. */
+const GENRES_SHOWN = 4;
 
 export class DetailPanel {
   constructor(element, { onPlayTrack, onClose } = {}) {
@@ -70,6 +84,7 @@ export class DetailPanel {
     this.graph = graph;
     // Index nodes by id so link rendering can resolve endpoint labels.
     this.nodeIndex = new Map(graph.nodes.map((n) => [n.id, n]));
+    this.isGenreMode = graph.mode === "genre";
   }
 
   /**
@@ -79,7 +94,35 @@ export class DetailPanel {
    */
   reset() {
     this.element.innerHTML = this.emptyMarkup;
+    this._retellEmptyState();
     this.element.prepend(this.closeButton);
+  }
+
+  /**
+   * The empty state is the only instructions a first-time visitor gets, so it
+   * has to describe the graph actually on screen. Rewritten here rather than
+   * templated into the three page shells because the mode changes without the
+   * page reloading.
+   */
+  _retellEmptyState() {
+    if (!this.isGenreMode) return;
+
+    const empty = this.element.querySelector(".detail-panel__empty");
+    if (!empty) return;
+
+    const lines = [
+      ["genre", " to list every song on this playlist that belongs to it."],
+      ["connection", " to list the songs that sit in both genres."],
+    ];
+    empty.querySelectorAll("p").forEach((paragraph, i) => {
+      if (!lines[i]) return;
+      const [target, rest] = lines[i];
+      paragraph.replaceChildren(
+        document.createTextNode("Click a "),
+        el("strong", null, target),
+        document.createTextNode(rest)
+      );
+    });
   }
 
   // ------------------------------------------------------------------
@@ -91,18 +134,23 @@ export class DetailPanel {
     tracks.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
 
     // Every route to an artist ends here -- clicking the node, hitting Enter in
-    // the search box -- so this is the one place that sees all of them.
-    trackArtistClick(node.label);
+    // the search box -- so this is the one place that sees all of them. A genre
+    // is not an artist, and recording "hip hop" as one would quietly corrupt
+    // the only table that answers "which artists do people open?".
+    if (!this.isGenreMode) trackArtistClick(node.label);
 
-    this._open();
-    this._render(
-      this._nodeHeader(node),
+    const sections = [this._nodeHeader(node)];
+    if (node.members?.length) sections.push(this._membersSection(node.members));
+    sections.push(
       this._trackSection(
         `${pluralise(tracks.length, "song")} on this playlist`,
         tracks,
         node.id
       )
     );
+
+    this._open();
+    this._render(...sections);
   }
 
   _nodeHeader(node) {
@@ -120,21 +168,82 @@ export class DetailPanel {
 
     const text = el("div");
     text.appendChild(el("h2", "detail-head__title", node.label));
-
-    const bits = [];
-    if (node.followers) bits.push(`${formatCompact(node.followers)} followers`);
-    if (node.degree) bits.push(pluralise(node.degree, "collaborator"));
-    if (node.is_primary) bits.push("main artist");
-    text.appendChild(el("p", "detail-head__meta", bits.join(" · ") || "—"));
+    text.appendChild(el("p", "detail-head__meta", this._nodeMeta(node)));
 
     if (node.genres?.length) {
       const chips = el("div", "detail-head__genres");
-      node.genres.slice(0, 4).forEach((g) => chips.appendChild(el("span", "genre-chip", g)));
+      node.genres.slice(0, GENRES_SHOWN).forEach((g) =>
+        chips.appendChild(el("span", "genre-chip", g))
+      );
+      // An artist carries a handful of labels, so the cap rarely bites. A genre
+      // node carries every Spotify label that folded into it -- "hip hop"
+      // absorbs dozens -- and four of those sorted alphabetically would read as
+      // the whole list rather than the alphabetical head of one.
+      const hidden = node.genres.length - GENRES_SHOWN;
+      if (hidden > 0) chips.appendChild(el("span", "genre-chip genre-chip--more", `+${hidden}`));
       text.appendChild(chips);
     }
 
     head.appendChild(text);
     return head;
+  }
+
+  /**
+   * The same three fields mean different things in the two modes: `degree`
+   * counts artists someone recorded with, or genres this one shares songs
+   * with, and `is_primary` is the playlist's main artist or its dominant
+   * genre. Follower counts belong to people, so a genre has none.
+   */
+  _nodeMeta(node) {
+    const bits = [];
+
+    if (this.isGenreMode) {
+      if (node.members?.length) bits.push(pluralise(node.members.length, "artist"));
+      if (node.degree) bits.push(`${pluralise(node.degree, "genre")} in common`);
+      if (node.is_primary) bits.push("top genre");
+    } else {
+      if (node.followers) bits.push(`${formatCompact(node.followers)} followers`);
+      if (node.degree) bits.push(pluralise(node.degree, "collaborator"));
+      if (node.is_primary) bits.push("main artist");
+    }
+
+    return bits.join(" · ") || "—";
+  }
+
+  /** The artists a genre node stands for, biggest contributor first. */
+  _membersSection(members) {
+    const section = el("section", "detail-section");
+    section.appendChild(
+      el("h3", "detail-section__title", pluralise(members.length, "artist"))
+    );
+
+    const list = el("ul", "member-list");
+    members.slice(0, MEMBERS_SHOWN).forEach((member) => {
+      const item = el("li", "member");
+
+      if (member.image_url) {
+        item.appendChild(
+          Object.assign(document.createElement("img"), {
+            className: "member__face",
+            src: member.image_url,
+            alt: "",
+            loading: "lazy",
+          })
+        );
+      } else {
+        item.appendChild(el("div", "member__face"));
+      }
+
+      item.appendChild(el("span", "member__name", member.name));
+      item.appendChild(el("span", "member__count", String(member.track_count)));
+      list.appendChild(item);
+    });
+    section.appendChild(list);
+
+    const hidden = members.length - MEMBERS_SHOWN;
+    if (hidden > 0) section.appendChild(el("p", "member-list__more", `+${hidden} more`));
+
+    return section;
   }
 
   // ------------------------------------------------------------------
@@ -150,7 +259,12 @@ export class DetailPanel {
     this._open();
     this._render(
       this._linkHeader(source, target, tracks.length),
-      this._trackSection(`${pluralise(tracks.length, "song")} together`, tracks)
+      this._trackSection(
+        this.isGenreMode
+          ? `${pluralise(tracks.length, "song")} in both`
+          : `${pluralise(tracks.length, "song")} together`,
+        tracks
+      )
     );
   }
 
@@ -175,7 +289,18 @@ export class DetailPanel {
         `${source?.label || "Unknown"} × ${target?.label || "Unknown"}`
       )
     );
-    text.appendChild(el("p", "detail-head__meta", pluralise(count, "collaboration")));
+    // A genre edge is not a collaboration: it means one song was credited to
+    // artists carrying both labels, which is as true of a solo artist who sits
+    // in two genres as it is of a feature.
+    text.appendChild(
+      el(
+        "p",
+        "detail-head__meta",
+        this.isGenreMode
+          ? `${pluralise(count, "song")} spanning both`
+          : pluralise(count, "collaboration")
+      )
+    );
     head.appendChild(text);
 
     return head;

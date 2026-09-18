@@ -154,6 +154,12 @@ class GraphNode:
     followers: int = 0
     genres: list[str] = field(default_factory=list)
     is_primary: bool = False  # the playlist's dominant artist
+    # The artists a composite node stands for, biggest contributor first.
+    # Empty in artist mode, where a node already *is* one artist; populated in
+    # genre mode, where the renderer tiles the first few faces into the circle
+    # and the detail panel lists the rest. Each entry is
+    # {id, name, image_url, track_count}.
+    members: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def track_count(self) -> int:
@@ -173,6 +179,7 @@ class GraphNode:
             "followers": self.followers,
             "genres": self.genres,
             "is_primary": self.is_primary,
+            "members": self.members,
         }
 
 

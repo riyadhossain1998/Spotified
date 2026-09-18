@@ -2,9 +2,9 @@
 
 import { trackVisit } from "../analytics.js";
 import { fetchGraph, fetchGraphStatus, playTrack } from "../api.js";
-import { formatNumber, pluralise } from "../format.js";
+import { formatNumber, nodeNoun, pluralise } from "../format.js";
 import { ArtistNetworkView } from "../graph/artistNetworkView.js";
-import { initGraphChrome } from "../graph/chrome.js";
+import { applyModeLabels, initGraphChrome } from "../graph/chrome.js";
 import { DetailPanel } from "../graph/detailPanel.js";
 
 export function initGraphPage({ playlistId, defaultMode }) {
@@ -63,7 +63,7 @@ export function initGraphPage({ playlistId, defaultMode }) {
     }
 
     const parts = [
-      pluralise(stats.artist_count, "artist"),
+      pluralise(stats.artist_count, nodeNoun(graph.mode)),
       pluralise(stats.connection_count, "connection"),
       `${formatNumber(stats.track_count)} tracks`,
     ];
@@ -100,6 +100,7 @@ export function initGraphPage({ playlistId, defaultMode }) {
       const { graph, cached, buildSeconds } = await fetchGraph(playlistId, mode, { refresh });
 
       renderHeader(graph, cached, buildSeconds);
+      applyModeLabels(graph.mode);
       panel.setGraph(graph);
       panel.reset();
 
