@@ -96,9 +96,10 @@ export async function apiGet(path, params) {
 /**
  * PUT/POST a resource, for the player endpoints.
  *
- * Separate from apiGet because those answer 204 with an empty body, and
- * `response.json()` on an empty body throws — which would report a successful
- * play as a failure. Retries and error translation are shared.
+ * Separate from apiGet because these answer with something other than a JSON
+ * document — 204 and nothing at all from /play, 200 and a bare request id from
+ * /queue — and `response.json()` throws on both. Retries and error translation
+ * are shared.
  */
 export async function apiSend(method, path, { params, body } = {}) {
   const url = buildUrl(path, params);
@@ -122,9 +123,21 @@ export async function apiSend(method, path, { params, body } = {}) {
     });
 
     if (response.ok) {
-      // 204 from /play, 200 with an empty body from /queue.
+      // Success bodies here are not reliably JSON, and assuming they were is a
+      // bug that shipped: /play answers 204 with nothing, but /queue answers 200
+      // with a bare request id ("Q28LTmc2Oe..."). JSON.parse threw on it, so a
+      // song that had genuinely been queued reported itself to the user as a
+      // failure, with a SyntaxError for a message.
+      //
+      // No caller reads this return value -- the endpoints are commands, not
+      // queries -- so a body we cannot parse is simply not a result. Only the
+      // status decides whether the call worked.
       const text = await response.text();
-      return text ? JSON.parse(text) : null;
+      try {
+        return text ? JSON.parse(text) : null;
+      } catch {
+        return null;
+      }
     }
 
     if (response.status === 401) {
