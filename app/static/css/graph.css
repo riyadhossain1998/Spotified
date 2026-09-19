@@ -406,6 +406,16 @@
 
 .detail-toast .detail-link { margin-top: 0.15rem; }
 
+/* Confirmation, not a warning: the accent rather than the error red, so the two
+   are told apart by colour before either is read. */
+.detail-toast--ok {
+  color: var(--accent);
+  opacity: 1;
+  transition: opacity 0.45s ease;
+}
+
+.detail-toast--ok.is-leaving { opacity: 0; }
+
 /* -------------------------------------------------------------- legend */
 
 /* A <details> so the collapse is the browser's, not ours. On desktop the
@@ -564,4 +574,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .detail-panel { animation: none; }
+  /* The confirmation still disappears, it just stops fading -- _showToast falls
+     back to removing it outright when the transition is off. */
+  .detail-toast--ok { transition: none; }
 }

@@ -295,7 +295,12 @@ export class DetailPanel {
   /**
    * Queueing has no visible consequence -- the song does not start, and Spotify
    * shows nothing -- so without an explicit acknowledgement the button reads as
-   * broken and gets pressed repeatedly. Hence the tick.
+   * broken and gets pressed repeatedly.
+   *
+   * The tick alone turned out to be too quiet: it is a 28px glyph on the button
+   * the cursor is already covering, so the one thing confirming the action is
+   * the thing most likely to be hidden by the user's own hand. The message says
+   * it in words, under the row, and takes itself away.
    */
   async _handleQueue(row, button, track) {
     trackSongClick(track.name);
@@ -313,8 +318,10 @@ export class DetailPanel {
         button.innerHTML = QUEUE_ICON;
         button.setAttribute("aria-label", `Add ${track.name} to queue`);
       }, 1600);
+
+      this._showToast(row, `Added to your Spotify queue.`, { ok: true });
     } catch (error) {
-      this._showToast(row, error, track);
+      this._showToast(row, error.message, { track });
     }
   }
 
@@ -332,15 +339,26 @@ export class DetailPanel {
       await this.onPlayTrack(track);
     } catch (error) {
       row.classList.remove("is-playing");
-      this._showToast(row, error, track);
+      this._showToast(row, error.message, { track });
     }
   }
 
-  _showToast(row, error, track) {
-    const toast = el("li", "detail-toast", error.message);
+  /**
+   * A line of feedback under the row that caused it.
+   *
+   * `ok` messages dismiss themselves; failures stay put. The asymmetry is
+   * deliberate -- a confirmation has been read by the time it fades, but an
+   * explanation of why nothing played is the only thing telling the user to
+   * open Spotify on a device, and it should not vanish while they do it.
+   */
+  _showToast(row, message, { track = null, ok = false } = {}) {
+    const toast = el("li", `detail-toast${ok ? " detail-toast--ok" : ""}`, message);
+    // Announced rather than merely drawn, so the confirmation reaches a screen
+    // reader the same way the button's aria-label does.
+    toast.setAttribute("role", "status");
 
     // Offer the web player as a fallback when device playback is unavailable.
-    if (track.spotify_url) {
+    if (track?.spotify_url) {
       const link = document.createElement("a");
       link.href = track.spotify_url;
       link.target = "_blank";
@@ -356,6 +374,23 @@ export class DetailPanel {
     // an active device, so on a hundred-track list the old placement put the
     // explanation several screens below the button that caused it.
     row.after(toast);
+
+    if (!ok) return;
+
+    // Fade, then remove. transitionend drives the removal so the two stay in
+    // step if the duration changes, but it cannot be the only trigger: a
+    // background tab suspends transitions, so a user who queues a song and
+    // immediately switches away never fires the event and comes back to a
+    // confirmation that outlived what it was confirming. Observed, not
+    // theorised -- it is what happens in a hidden preview tab. The timer is the
+    // backstop, and whichever fires first wins.
+    setTimeout(() => {
+      if (!toast.isConnected) return;
+      const remove = () => toast.remove();
+      toast.addEventListener("transitionend", remove, { once: true });
+      toast.classList.add("is-leaving");
+      setTimeout(remove, 1000);
+    }, 1800);
   }
 
   _resolveTracks(trackIds) {
