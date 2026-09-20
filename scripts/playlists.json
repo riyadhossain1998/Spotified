@@ -1,0 +1,11 @@
+[
+  { "slug": "edm-hits",        "name": "EDM Hits",                 "playlist_id": "7MKnQHlRCz4PuvPswuTrRG" },
+  { "slug": "billboard-16-20", "name": "2016-2020 Billboard Hits", "playlist_id": "3h66uGHxm1TlW2BRo4NfDC" },
+  { "slug": "billboard-10-15", "name": "2010-2015 Billboard Hits", "playlist_id": "4GoxCryYMMDApadgKn0Y2k" },
+  { "slug": "taylor-swift",    "name": "Taylor Swift",             "playlist_id": "0eV9RgyyvSFjhCbhWCU5G6" },
+  { "slug": "the-weeknd",      "name": "The Weeknd",               "playlist_id": "46LUnqZwMf4BpDDEc1dMcu" },
+  { "slug": "drake",           "name": "Drake",                    "playlist_id": "0YojRN4lZwHnCtukJsX33H" },
+  { "slug": "lil-wayne",       "name": "Lil Wayne",                "playlist_id": "0v9px6Cs3zoFa8tFXJBE5z" },
+  { "slug": "eminem",          "name": "Eminem",                   "playlist_id": "6nhhC3GZ0OkZnejAaAupDE" },
+  { "slug": "pitbull",         "name": "Pitbull",                  "playlist_id": "189ho85sqkpAxJqCRt0tHx" }
+]

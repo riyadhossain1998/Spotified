@@ -13,6 +13,7 @@ are stitched together.
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -37,6 +38,9 @@ JS = [
 # Must stay in step with the `payload` docs/index.html hands to initDemoPage.
 DEMO_PAYLOAD = "demo-graph.json"
 
+# The picker's source of truth, written by scripts/build_graphs.py.
+GRAPH_MANIFEST = Path("graphs") / "index.json"
+
 
 def build(output: Path) -> int:
     if not (DOCS / "index.html").exists():
@@ -54,6 +58,32 @@ def build(output: Path) -> int:
             file=sys.stderr,
         )
         return 1
+
+    # The manifest is checked but not required. A missing one is a degraded
+    # site, not a broken one -- initDemoPage falls back to DEMO_PAYLOAD and the
+    # picker hides itself -- so failing the build here would block a deploy over
+    # something a visitor would not notice.
+    manifest = DOCS / GRAPH_MANIFEST
+    if not manifest.exists():
+        print(
+            f"Warning: no {manifest}, publishing the single-graph demo only.\n"
+            "  Generate it with: python scripts/build_graphs.py",
+            file=sys.stderr,
+        )
+    else:
+        missing = [
+            entry["file"]
+            for entry in json.loads(manifest.read_text(encoding="utf-8"))
+            if not (manifest.parent / entry["file"]).exists()
+        ]
+        # A manifest listing a file that is not there is the one failure the
+        # visitor *does* see: the tile renders, the click 404s. Cheap to catch.
+        if missing:
+            print(
+                f"Manifest lists missing payload(s): {', '.join(missing)}",
+                file=sys.stderr,
+            )
+            return 1
 
     if output.exists():
         shutil.rmtree(output)

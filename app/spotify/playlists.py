@@ -105,10 +105,18 @@ def _get_playlist_items(
     """One page of a playlist's items.
 
     Not `client.playlist_items()`: spotipy pins the path to
-    `playlists/{id}/tracks`, which Spotify removed in its 2026-02 migration and
-    now answers with 403 Forbidden for every caller -- including the playlist's
-    own owner. Until spotipy ships the new path, go through its request plumbing
-    directly so retries, auth refresh and error translation still apply.
+    `playlists/{id}/tracks`, the pre-2026-02 name. On a *user* token that path
+    answers 403 for every caller, including the playlist's own owner, which is
+    what makes this bypass necessary. Until spotipy ships the new path, go
+    through its request plumbing directly so retries, auth refresh and error
+    translation still apply.
+
+    The 403 belongs to that grant type, not to the endpoint: measured
+    2026-09-20, `/tracks` still answers 200 on client credentials. An earlier
+    version of this comment called it "removed", generalising from the single
+    grant where it had been seen. `/items` is the documented name and is
+    correct for both, so the code below is unchanged -- but a future reader
+    should not conclude the endpoint is gone.
     """
     return client._get(
         f"playlists/{client._get_id('playlist', playlist_id)}/items",

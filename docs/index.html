@@ -63,6 +63,75 @@
     @media (max-width: 700px) {
       .demo-banner { display: none; }
     }
+
+    /* --- playlist picker ------------------------------------------------
+       A single scrolling row rather than a wrapping grid. Nine tiles in a grid
+       push the graph below the fold on a laptop, and the graph is the thing
+       worth seeing first; a row costs one line of height whatever the count. */
+    .picker {
+      display: flex;
+      gap: .5rem;
+      padding: .6rem 1.25rem;
+      overflow-x: auto;
+      flex: 0 0 auto;
+      border-bottom: 1px solid var(--border);
+      scrollbar-width: thin;
+      /* Momentum scrolling on touch, and tiles that settle aligned. */
+      scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
+    }
+    .picker:empty { display: none; }   /* no manifest: no empty bar */
+
+    .picker__item {
+      display: flex;
+      align-items: center;
+      gap: .55rem;
+      flex: 0 0 auto;
+      scroll-snap-align: start;
+      padding: .35rem .7rem .35rem .35rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--text-muted);
+      font: inherit;
+      font-size: .82rem;
+      cursor: pointer;
+      transition: border-color .15s ease, color .15s ease, background .15s ease;
+    }
+    .picker__item:hover { color: var(--text); border-color: var(--text-muted); }
+    .picker__item:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .picker__item.is-active {
+      color: var(--text);
+      border-color: var(--accent);
+      background: rgba(29, 185, 84, .12);
+    }
+
+    .picker__art {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex: 0 0 auto;
+      background: var(--surface-2, #222);
+    }
+    .picker__text { display: flex; flex-direction: column; line-height: 1.25; text-align: left; }
+    .picker__name { font-weight: 600; white-space: nowrap; }
+    .picker__meta { font-size: .72rem; opacity: .65; white-space: nowrap; }
+
+    /* The subtitle is the first thing to go when horizontal room is scarce --
+       the cover art and the name already identify the tile. */
+    @media (max-width: 700px) {
+      .picker { padding: .5rem .75rem; }
+      .picker__meta { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .picker { scroll-behavior: auto; }
+      .picker__item { transition: none; }
+    }
   </style>
 </head>
 <body class="body--graph">
@@ -83,13 +152,18 @@
   <div class="demo-banner">
     <span>
       <strong>Interactive demo.</strong>
-      Static sample data — no sign-in. Run the app locally to graph your own playlists and Liked Songs.
+      Pick a playlist below — no sign-in. Log in to graph your own playlists and Liked Songs.
     </span>
     <span class="demo-banner__spacer"></span>
     <a class="btn btn--ghost btn--sm"
        href="https://github.com/riyadhossain1998/Spotified#quick-start"
        target="_blank" rel="noopener">Run it yourself</a>
   </div>
+
+  <!-- Populated from graphs/index.json. Empty in the markup rather than
+       hand-listed so adding a playlist is a build-script run, not an edit
+       here plus an edit there that can disagree with each other. -->
+  <nav id="graph-picker" class="picker" aria-label="Choose a playlist"></nav>
 
   <main class="graph-page">
     <div class="graph-toolbar">
@@ -154,7 +228,13 @@
     // The demo graph needs no account, so it renders regardless of whether
     // login is even configured. Wire the button separately for that reason.
     initHomeLogin();
-    initDemoPage({ payload: "./demo-graph.json" });
+    // `payload` is the fallback for a missing/empty manifest, which keeps the
+    // page working as the original single-graph demo rather than blank.
+    initDemoPage({
+      manifest: "./graphs/index.json",
+      graphDir: "./graphs/",
+      payload: "./demo-graph.json",
+    });
   </script>
 </body>
 </html>
