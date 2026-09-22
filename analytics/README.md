@@ -92,8 +92,11 @@ Otherwise, to push a change to `worker.js`:
 ```bash
 TOKEN=$(security find-generic-password -s "cloudflare-api-token" -w)
 ACCOUNT=ade8e1a50d8bd4ea70b72c5d0e9f8e58
-CID=$(security find-generic-password -s "spotify-client-id" -w)
-SECRET=$(security find-generic-password -s "spotify-client-secret" -w)
+# `export`, not a plain assignment: the heredoc below reads these through
+# os.environ, and a shell variable that was never exported is not there. A
+# plain `CID=` gives the deploy a KeyError instead of a Worker.
+export CID=$(security find-generic-password -a spotified -s spotify-client-id -w)
+export SECRET=$(security find-generic-password -a spotified -s spotify-client-secret -w)
 
 METADATA=$(python3 - <<PY
 import json, os
@@ -125,11 +128,18 @@ the account. `query.sh` explains how to put one in the keychain. The two Spotify
 values go in the same place:
 
 ```bash
-security add-generic-password -U -s "spotify-client-id" -a "$USER" -w
-security add-generic-password -U -s "spotify-client-secret" -a "$USER" -w
+security add-generic-password -U -a spotified -s "spotify-client-id" -w
+security add-generic-password -U -a spotified -s "spotify-client-secret" -w
 ```
 
+`-a spotified`, not `-a "$USER"`: `scripts/credentials.py` looks these up by
+that account name, and the lookups above match on service alone. Adding a
+second entry under a different account for the same service leaves two rows
+where the reader expects one.
+
 These are the credentials of the older, non-PKCE Spotify app — the configuration
-measured to return 200 on `/v1/artists`. They currently also sit in plaintext in a
-comment in `EtherialNetwork/spotipy_connection.py` in the legacy project, so the
-secret is worth rotating in the Spotify dashboard and re-uploading here.
+measured to return 200 on `/v1/artists`. Note what that makes this secret: not a
+legacy leftover but live infrastructure, shared with
+`scripts/build_graphs.py`. Rotating it in the Spotify dashboard breaks `/artists`
+here the moment the old value is revoked, so the new secret has to be uploaded
+in the same sitting.

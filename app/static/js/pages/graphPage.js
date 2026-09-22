@@ -54,7 +54,7 @@ export function initGraphPage({ playlistId, defaultMode }) {
   function renderHeader(graph, cached, buildSeconds) {
     const { playlist, stats } = graph;
 
-    document.title = `${playlist.name} — Feature Network`;
+    document.title = `${playlist.name} — Popified Networks`;
     nameEl.textContent = playlist.name;
 
     if (playlist.image_url) {

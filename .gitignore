@@ -28,3 +28,7 @@ htmlcov/
 .DS_Store
 .idea/
 .vscode/
+
+# Claude Code local state (launch configs, approved-command log). Machine-
+# specific, and settings.local.json records commands verbatim.
+.claude/

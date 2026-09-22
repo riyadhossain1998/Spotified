@@ -1,4 +1,4 @@
--- Event store for the Spotified analytics Worker.
+-- Event store for the Popified Networks analytics Worker.
 --
 -- Deliberately four columns. There is no session id, no visitor id, no IP and
 -- no user agent, so a row cannot be tied back to a person even in principle --

@@ -46,6 +46,10 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* `space-between` leaves nothing between the brand and the nav once the two
+     grow wide enough to meet -- measured on a 375px viewport they ended up
+     touching at the same x. This guarantees a gutter instead. */
+  gap: 1rem;
   padding: 0 1.5rem;
   border-bottom: 1px solid var(--border);
   background: var(--bg-elevated);
@@ -60,6 +64,9 @@ a { color: inherit; text-decoration: none; }
   gap: 0.6rem;
   font-weight: 700;
   letter-spacing: -0.01em;
+  /* The bar is a fixed 60px, so a wrapped brand does not grow it -- the second
+     line overflows. A two-word name wraps at 320px without this. */
+  white-space: nowrap;
 }
 
 .topbar__mark {
@@ -68,16 +75,36 @@ a { color: inherit; text-decoration: none; }
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 0 4px rgba(29, 185, 84, 0.18);
+  /* A fixed width is still shrinkable in flex; without this the dot ovals out
+     once the bar is tight. */
+  flex: 0 0 auto;
 }
 
 .topbar__nav {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex: 0 0 auto;
 }
 
-.topbar__link { color: var(--text-muted); font-size: 0.9rem; }
+.topbar__link { color: var(--text-muted); font-size: 0.9rem; white-space: nowrap; }
 .topbar__link:hover { color: var(--text); }
+
+/* Phones. The three items in this bar need ~343px of content box at the
+   desktop sizes and a 375px screen only offers 327, so reclaim the difference
+   from padding and type rather than letting anything collide. */
+@media (max-width: 700px) {
+  .topbar { padding: 0 0.875rem; }
+  .topbar__brand { font-size: 0.9rem; gap: 0.5rem; }
+  .topbar__nav { gap: 0.625rem; }
+}
+
+/* Below ~360px even that is not enough for brand + login + Source. Source is
+   the one that goes: it is a convenience link to the repo, whereas the login
+   button is the page's only call to action. */
+@media (max-width: 360px) {
+  .topbar__link { display: none; }
+}
 
 .topbar__user {
   display: flex;

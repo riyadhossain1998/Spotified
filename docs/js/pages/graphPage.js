@@ -118,7 +118,7 @@ export async function initGraphPage() {
     loaderText.textContent = "Reading the playlist…";
     const playlist = await getPlaylist(playlistId);
 
-    document.title = `${playlist.name} — Spotified`;
+    document.title = `${playlist.name} — Popified Networks`;
     nameEl.textContent = playlist.name;
     if (playlist.image_url) {
       artEl.src = playlist.image_url;

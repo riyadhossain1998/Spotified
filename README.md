@@ -1,4 +1,4 @@
-# Feature Network
+# Popified Networks
 
 A Flask + D3 web app that turns a Spotify playlist into a **collaboration network**: every
 artist is a node, every link is a pair of artists who appear together on a track in that
